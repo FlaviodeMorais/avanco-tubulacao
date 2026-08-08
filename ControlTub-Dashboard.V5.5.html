@@ -605,7 +605,7 @@ main{
         <div class="mini-chart-wrap-lg"><canvas id="reparosSold1Chart"></canvas></div>
       </div>
       <div>
-        <p class="mini-chart-label"><span class="dot" style="background:#C0392B"></span>Reparos 2ª Reprovação</p>
+        <p class="mini-chart-label"><span class="dot" style="background:#9B1C31"></span>Reparos 2ª Reprovação</p>
         <div class="mini-chart-wrap-lg"><canvas id="reparosSold2Chart"></canvas></div>
       </div>
     </div>
@@ -1257,10 +1257,10 @@ function renderKPIs(){
   const cards = [
     {label:'Peso total do escopo', value: fmtTon(total), unit:'ton', accent:'var(--azul)', foot: (currentUnidade==='__ALL__' ? 'Todos os sistemas' : currentUnidade)},
     {label:'Spools na base', value: fmtInt(spoolCount), unit:'un', accent:'var(--verde)', foot: currentUnidade==='__ALL__' ? (fmtInt(DATA.unidades.length) + ' sistemas') : 'Sistema ' + currentUnidade},
-    {label:'Avanço geral (Liberado END)', value: pctAvanco.toFixed(1).replace('.',','), unit:'%', accent:'var(--amarelo-claro)', foot: fmtTon(last['Liberado END']) + ' ton concluídas', footClass:'up'},
+    {label:'Avanço geral (Liberado END)', value: pctAvanco.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Liberado END'], foot: fmtTon(last['Liberado END']) + ' ton concluídas', footClass:'up'},
     {label:'Não iniciados (montagem)', value: pctNaoIniciado.toFixed(1).replace('.',','), unit:'%', accent:'var(--laranja)', foot: fmtInt(naoIniciado) + ' spools parados', footClass:'warn'},
     {label:'Avanço por SOP', value: DATA.kpis.sop_avg_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-escuro)', foot: fmtInt(DATA.kpis.sop_completos) + ' de ' + fmtInt(DATA.kpis.sop_total_n) + ' pacotes (todos os sistemas)'},
-    {label:'Avanço STH (peso testado)', value: DATA.kpis.sth_pct_peso.toFixed(1).replace('.',','), unit:'%', accent:'var(--verde-agua)', foot: fmtInt(DATA.kpis.sth_iniciados_n) + ' de ' + fmtInt(DATA.kpis.sth_total_n) + ' sistemas iniciados'},
+    {label:'Avanço STH (peso testado)', value: DATA.kpis.sth_pct_peso.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Teste Hidrostático'], foot: fmtInt(DATA.kpis.sth_iniciados_n) + ' de ' + fmtInt(DATA.kpis.sth_total_n) + ' sistemas iniciados'},
   ];
 
   const row = document.getElementById('kpiRow');
@@ -1465,7 +1465,7 @@ function renderVelocidadeFabricacao(){
   if(chartVelFabricacao) chartVelFabricacao.destroy();
   chartVelFabricacao = new Chart(ctx, {
     type:'bar',
-    data:{ labels: months, datasets:[{ label:'Ton fabricadas no mês', data: delta, backgroundColor:'#675C53', borderRadius:2 }] },
+    data:{ labels: months, datasets:[{ label:'Ton fabricadas no mês', data: delta, backgroundColor:STAGE_COLORS['Fabricado'], borderRadius:2 }] },
     options:{
       responsive:true, maintainAspectRatio:false,
       scales:{
@@ -1476,7 +1476,7 @@ function renderVelocidadeFabricacao(){
       plugins:{
         legend:{display:false},
         tooltip:{
-          backgroundColor:'#fff', borderColor:'#675C53', borderWidth:1,
+          backgroundColor:'#fff', borderColor:STAGE_COLORS['Fabricado'], borderWidth:1,
           titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
           titleFont:{family:'Trebuchet MS',size:11,weight:'bold'}, bodyFont:{family:'Trebuchet MS',size:11},
           callbacks:{ label: i => `${fmtTon(i.parsed.y)} ton` }
@@ -1555,7 +1555,7 @@ function renderVelocidadeMontagem(){
   if(chartVelMontagem) chartVelMontagem.destroy();
   chartVelMontagem = new Chart(ctx, {
     type:'bar',
-    data:{ labels: months, datasets:[{ label:'Ton liberadas no mês', data: delta, backgroundColor:'#006298', borderRadius:2 }] },
+    data:{ labels: months, datasets:[{ label:'Ton liberadas no mês', data: delta, backgroundColor:STAGE_COLORS['Liberado END'], borderRadius:2 }] },
     options:{
       responsive:true, maintainAspectRatio:false,
       scales:{
@@ -1566,7 +1566,7 @@ function renderVelocidadeMontagem(){
       plugins:{
         legend:{display:false},
         tooltip:{
-          backgroundColor:'#fff', borderColor:'#006298', borderWidth:1,
+          backgroundColor:'#fff', borderColor:STAGE_COLORS['Liberado END'], borderWidth:1,
           titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
           titleFont:{family:'Trebuchet MS',size:11,weight:'bold'}, bodyFont:{family:'Trebuchet MS',size:11},
           callbacks:{ label: i => `${fmtTon(i.parsed.y)} ton` }
@@ -1714,8 +1714,8 @@ function renderJuntasKPIs(){
   const k = JUNTAS.kpis;
   const cards = [
     { label:'Total de Juntas',   value: fmtInt(k.total_juntas), unit:'un',  accent:'var(--azul)',       foot: 'Raiz + enchimento cadastradas' },
-    { label:'Soldadas (Raiz)',    value: fmtPct(k.pct_soldadas), unit:'',    accent:'var(--verde)',      foot: fmtInt(k.soldadas) + ' juntas soldadas', footClass:'up' },
-    { label:'Liberadas END',      value: fmtPct(k.pct_lib_end),  unit:'',    accent:'var(--verde-agua)', foot: fmtInt(k.lib_end) + ' juntas liberadas', footClass:'up' },
+    { label:'Soldadas (Raiz)',    value: fmtPct(k.pct_soldadas), unit:'',    accent:STAGE_COLORS['Soldado'],      foot: fmtInt(k.soldadas) + ' juntas soldadas', footClass:'up' },
+    { label:'Liberadas END',      value: fmtPct(k.pct_lib_end),  unit:'',    accent:STAGE_COLORS['Liberado END'], foot: fmtInt(k.lib_end) + ' juntas liberadas', footClass:'up' },
     { label:'Índice de Reparo',   value: fmtPct(k.pct_reparo),   unit:'',    accent:'var(--laranja)',    foot: fmtInt(k.reparos1) + ' reparos (1ª) · ' + fmtInt(k.reparos2) + ' (2ª)' },
     { label:'END — RX previstos', value: fmtInt(k.end_rx_total), unit:'jts', accent:'var(--azul-escuro)',foot: fmtInt(k.end_rx_ok) + ' realizados (100%)' },
     { label:'END — US previstos', value: fmtInt(k.end_us_total), unit:'jts', accent:'var(--azul-claro)', foot: fmtInt(k.end_us_ok) + ' realizados (100%)' },
@@ -1737,9 +1737,9 @@ function renderCurvaJuntas(){
     data:{
       labels: JUNTAS.curve_months,
       datasets:[
-        { label:'Soldadas', data: JUNTAS.curve_sold, borderColor:'#008542', backgroundColor:'rgba(0,133,66,.12)',
+        { label:'Soldadas', data: JUNTAS.curve_sold, borderColor:STAGE_COLORS['Soldado'], backgroundColor:'rgba(168,180,0,.14)',
           borderWidth:2, pointRadius:0, pointHoverRadius:4, fill:true, tension:.25 },
-        { label:'Liberadas END', data: JUNTAS.curve_lib, borderColor:'#FDC82F', backgroundColor:'rgba(253,200,47,.10)',
+        { label:'Liberadas END', data: JUNTAS.curve_lib, borderColor:STAGE_COLORS['Liberado END'], backgroundColor:'rgba(0,133,66,.14)',
           borderWidth:2, pointRadius:0, pointHoverRadius:4, fill:true, tension:.25 },
       ]
     },
@@ -1879,7 +1879,7 @@ function renderReparosSoldadores(){
   if(chartReparosSold1) chartReparosSold1.destroy();
   if(chartReparosSold2) chartReparosSold2.destroy();
   chartReparosSold1 = renderTopReparosMini('reparosSold1Chart', JUNTAS.reparos_por_soldador.slice(0,10), '#E17000');
-  chartReparosSold2 = renderTopReparosMini('reparosSold2Chart', (JUNTAS.reparos2_por_soldador||[]).slice(0,10), '#C0392B');
+  chartReparosSold2 = renderTopReparosMini('reparosSold2Chart', (JUNTAS.reparos2_por_soldador||[]).slice(0,10), '#9B1C31');
 }
 
 // ---- Status END ----
