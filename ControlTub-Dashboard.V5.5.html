@@ -817,11 +817,18 @@ function computeDashboardData(rows){
   });
   if(minKey===null){ minKey = maxKey = monthKey(new Date().getFullYear(), new Date().getMonth()); }
 
+  // Mostra só os últimos 24 meses — sem isso, uma data isolada e distante
+  // (ex.: erro de digitação numa planilha) alarga o eixo do tempo inteiro
+  // com uma cauda de meses zerados lá atrás.
+  const WINDOW_MONTHS = 24;
+  if(maxKey - minKey + 1 > WINDOW_MONTHS) minKey = maxKey - WINDOW_MONTHS + 1;
+
   const months = [];
   const monthEnds = [];
   for(let k=minKey; k<=maxKey; k++){
     const y = Math.floor(k/12), m = k%12;
-    months.push(MONTH_ABBR[m] + '/' + String(y).slice(2));
+    const label = MONTH_ABBR[m] + '/' + String(y).slice(2);
+    months.push(label.charAt(0).toUpperCase() + label.slice(1));
     monthEnds.push(monthEndOf(y,m));
   }
 
@@ -1130,8 +1137,15 @@ function computeJuntasData(rows){
   allDates.sort((a,b)=>a-b);
   const p001 = allDates[Math.floor(allDates.length*0.001)];
   const pend = allDates[allDates.length-1];
-  const mStart = new Date(p001.getFullYear(), p001.getMonth(), 1);
+  let mStart = new Date(p001.getFullYear(), p001.getMonth(), 1);
   const mEnd   = new Date(pend.getFullYear(), pend.getMonth(), 1);
+  // Mesma proteção do lado Spools: nunca mais que 24 meses no eixo, mesmo que o
+  // corte de outlier (percentil 0,1%) acima não seja suficiente por si só.
+  const WINDOW_MONTHS_J = 24;
+  const totalMonthsSpan = (mEnd.getFullYear()-mStart.getFullYear())*12 + (mEnd.getMonth()-mStart.getMonth()) + 1;
+  if(totalMonthsSpan > WINDOW_MONTHS_J){
+    mStart = new Date(mEnd.getFullYear(), mEnd.getMonth() - (WINDOW_MONTHS_J-1), 1);
+  }
   // "mat" é opcional — planilhas antigas de Mapa de Juntas sem essa coluna continuam funcionando,
   // só ficam sem a curva de soldagem por material.
   const materiais = [...new Set(rows.map(r=>r.mat).filter(Boolean))].sort();
