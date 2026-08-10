@@ -413,6 +413,18 @@ main{
     </div>
   </section>
 
+  <section class="panel chart-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Rundown <span class="mono-tag">BACKLOG</span></h2>
+        <p class="panel-sub">Peso restante por etapa — o inverso da Curva de Avanço ( Peso / % )</p>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="rundownChart"></canvas>
+    </div>
+  </section>
+
   <section class="panel">
     <div class="panel-head">
       <div>
@@ -487,8 +499,8 @@ main{
   <section class="panel">
     <div class="panel-head">
       <div>
-        <h2>Curva de Avanço por SOP <span class="mono-tag" id="sopCurveTag">S-CURVE</span></h2>
-        <p class="panel-sub">Peso fabricado acumulado por mês vs. peso de projeto do pacote — clique numa linha da tabela abaixo para trocar o pacote SOP</p>
+        <h2>Rundown por SOP <span class="mono-tag" id="sopCurveTag">BACKLOG</span></h2>
+        <p class="panel-sub">Peso restante (a fabricar) por mês, por pacote — clique numa linha da tabela abaixo para trocar o pacote SOP</p>
       </div>
     </div>
     <div class="chart-wrap-sm"><canvas id="sopCurveChart"></canvas></div>
@@ -1313,6 +1325,7 @@ unidadeSelect.addEventListener('change', e=>{
   currentUnidade = e.target.value;
   renderKPIs();
   renderChart();
+  renderRundownChart();
   renderSummaryTable();
   renderVelocidadeFabricacao();
   renderVelocidadeMontagem();
@@ -1437,7 +1450,88 @@ document.getElementById('modeToggle').addEventListener('click', e=>{
   btn.classList.add('active');
   currentMode = btn.dataset.mode;
   renderChart();
+  renderRundownChart();
 });
+
+// ---------- Rundown (backlog) — inverso da Curva de Avanço: peso restante por etapa,
+// caindo até zero em vez de subir até o total. Mesmo curve/mode/filtro de sistema. ----------
+function buildRundownDatasets(){
+  const curve = getCurve();
+  const stages = DATA.stages;
+  return stages.map(stage=>{
+    const raw = curve.series[stage];
+    let data;
+    if(currentMode==='pct'){
+      data = raw.map(v => curve.total>0 ? +(100 - v/curve.total*100).toFixed(2) : 0);
+    } else {
+      data = raw.map(v => +(curve.total - v).toFixed(3));
+    }
+    return {
+      label: stage,
+      data: data,
+      backgroundColor: STAGE_COLORS[stage],
+      borderColor: STAGE_COLORS[stage],
+      borderWidth: 1.5,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: STAGE_COLORS[stage],
+      fill: false,
+      tension: 0.25,
+    };
+  });
+}
+
+let chartRundown = null;
+function renderRundownChart(){
+  const canvas = document.getElementById('rundownChart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const datasets = buildRundownDatasets();
+  const isPct = currentMode==='pct';
+
+  if(chartRundown){ chartRundown.destroy(); }
+  chartRundown = new Chart(ctx, {
+    type:'line',
+    data:{ labels: DATA.months, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      scales:{
+        x:{
+          grid:{ color:'#E4E2DD' },
+          ticks:{ color:'#675C53', font:{family:'Trebuchet MS', size:10.5}, maxRotation:0, autoSkip:true, maxTicksLimit:14 }
+        },
+        y:{
+          stacked:false,
+          grid:{ color:'#E4E2DD' },
+          ticks:{
+            color:'#675C53', font:{family:'Trebuchet MS', size:10.5},
+            callback: v => isPct ? v+'%' : v
+          },
+          title:{ display:true, text: isPct ? '% restante do escopo' : 'Peso restante (ton)', color:'#675C53', font:{family:'Trebuchet MS', size:10.5} }
+        }
+      },
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{
+            color:'#1A1A1A', font:{family:'Trebuchet MS', size:11}, usePointStyle:true, pointStyle:'rectRounded',
+            padding:14, boxWidth:10, boxHeight:10,
+          }
+        },
+        tooltip:{
+          backgroundColor:'#FFFFFF', borderColor:'#008542', borderWidth:1,
+          titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
+          titleFont:{family:'Trebuchet MS', size:11.5, weight:'bold'}, bodyFont:{family:'Trebuchet MS', size:11.5},
+          padding:10, boxPadding:4,
+          callbacks:{
+            label: (item)=> `${item.dataset.label}: ${isPct ? item.parsed.y+'%' : fmtTon(item.parsed.y)+' ton'}`
+          }
+        }
+      }
+    }
+  });
+}
 
 // ---------- Summary table ----------
 function renderSummaryTable(){
@@ -1506,11 +1600,11 @@ function renderSopCurve(sopCode){
   if(selectedTr) selectedTr.classList.add('selected');
   if(tagEl) tagEl.textContent = sopCode;
 
+  const restante = curve.series['Fabricado'].map(v => +(curve.total - v).toFixed(3));
   const datasets = [
-    { label:'Fabricado', data: curve.series['Fabricado'], backgroundColor: STAGE_COLORS['Fabricado']+'CC',
-      borderColor: STAGE_COLORS['Fabricado'], borderWidth:1.5, pointRadius:0, pointHoverRadius:4, fill:'origin', tension:.25 },
-    { label:'Peso de Projeto', data: DATA.months.map(()=>curve.total), backgroundColor:'transparent',
-      borderColor:'#675C53', borderWidth:1.5, borderDash:[6,4], pointRadius:0, pointHoverRadius:0, fill:false, tension:0 },
+    { label:'Fabricado (restante)', data: restante, backgroundColor: STAGE_COLORS['Fabricado'],
+      borderColor: STAGE_COLORS['Fabricado'], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
+      pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 },
   ];
 
   if(chartSopCurve) chartSopCurve.destroy();
@@ -1523,7 +1617,7 @@ function renderSopCurve(sopCode){
       scales:{
         x:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10},maxTicksLimit:14,autoSkip:true,maxRotation:0} },
         y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}},
-            title:{display:true,text:'Peso acumulado (ton)',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
+            title:{display:true,text:'Peso restante (ton)',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
       },
       plugins:{
         legend:{ position:'bottom', labels:{color:'#1A1A1A',font:{family:'Trebuchet MS',size:11},usePointStyle:true,pointStyle:'rectRounded',padding:12} },
@@ -1807,6 +1901,7 @@ function initFromData(newData){
 
   renderKPIs();
   renderChart();
+  renderRundownChart();
   renderSummaryTable();
   renderSopAvanco();
   renderVelocidadeFabricacao();
