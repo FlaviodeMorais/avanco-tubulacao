@@ -392,8 +392,8 @@ main{
       <input type="file" id="fileInput" accept=".xlsx" hidden>
     </div>
     <div class="topbar-field">
-      <label class="field-label">Publicar para todos</label>
-      <button id="publishBtn" class="upload-btn publish-btn" type="button" title="Commita data.json e juntas.json direto no repositório (pede um token na primeira vez) — assim todo mundo que abrir o link vê a atualização">
+      <label class="field-label">Baixar Dados</label>
+      <button id="publishBtn" class="upload-btn publish-btn" type="button" title="Publica data.json e juntas.json via Azure Function (pede a URL da Function na primeira vez) — assim todo mundo que abrir o link vê a atualização">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Publicar agora
       </button>
@@ -1327,17 +1327,16 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
 });
 
 // ============================================================
-// PUBLICAR — commita data.json/juntas.json direto no repositório via API do
-// GitHub, num clique. Precisa de um token pessoal (fine-grained, com escopo
-// só "Contents: Read and write" NESTE repositório) — pedido uma vez e salvo
-// no localStorage deste navegador; nunca fica embutido no HTML/JS publicado.
-// Se der erro (sem token, token inválido, sem internet), cai automaticamente
-// no fallback de baixar os 2 arquivos pra subir manualmente.
+// PUBLICAR — chama uma Azure Function (proxy) que commita data.json/
+// juntas.json no repositório. Ninguém precisa de token do GitHub: a Function
+// guarda o token dela (nas Application Settings), e o time compartilha só a
+// URL da Function (que já inclui a chave de acesso) — pedida uma vez e salva
+// no localStorage deste navegador. Ver azure-function/README.md no
+// repositório para como criar a Function.
+// Se der erro (sem URL configurada, URL errada, Function fora do ar), cai
+// automaticamente no fallback de baixar os 2 arquivos pra subir manualmente.
 // ============================================================
-const GH_OWNER = 'FlaviodeMorais';
-const GH_REPO  = 'avanco-tubulacao';
-const GH_BRANCH = 'main';
-const LS_KEY_GH_TOKEN = 'controltub_gh_token_v1';
+const LS_KEY_PUBLISH_URL = 'controltub_publish_url_v1';
 
 function downloadJson(obj, filename){
   const blob = new Blob([JSON.stringify(obj)], { type: 'application/json' });
@@ -1348,66 +1347,47 @@ function downloadJson(obj, filename){
   URL.revokeObjectURL(url);
 }
 
-function getGithubToken(forcePrompt){
-  let token = !forcePrompt && localStorage.getItem(LS_KEY_GH_TOKEN);
-  if(!token){
-    token = prompt(
-      'Cole seu GitHub token para publicar direto no repositório.\n\n' +
-      'Se ainda não tem um:\n' +
-      '1. Acesse github.com/settings/personal-access-tokens/new\n' +
-      '2. Repository access → Only select repositories → ' + GH_REPO + '\n' +
-      '3. Permissions → Contents → Read and write\n' +
-      '4. Gere e cole o token aqui (fica salvo só neste navegador).'
+function getPublishUrl(forcePrompt){
+  let url = !forcePrompt && localStorage.getItem(LS_KEY_PUBLISH_URL);
+  if(!url){
+    url = prompt(
+      'Cole a URL da Function "PublicarDados" (peça a quem configurou a Azure Function do time).\n\n' +
+      'Formato esperado: https://<sua-function>.azurewebsites.net/api/PublicarDados?code=...\n\n' +
+      'Fica salva só neste navegador — veja azure-function/README.md no repositório se ainda não configurou a Function.'
     );
-    if(token) localStorage.setItem(LS_KEY_GH_TOKEN, token.trim());
+    if(url) localStorage.setItem(LS_KEY_PUBLISH_URL, url.trim());
   }
-  return token ? token.trim() : null;
-}
-
-async function githubPutFile(path, contentObj, message, token){
-  const api = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}`;
-  const headers = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' };
-
-  const getRes = await fetch(api + '?ref=' + GH_BRANCH, { headers });
-  let sha;
-  if(getRes.status === 200){ sha = (await getRes.json()).sha; }
-  else if(getRes.status !== 404){ throw { status: getRes.status, step: 'ler ' + path }; }
-
-  const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(contentObj))));
-  const putRes = await fetch(api, {
-    method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, content: contentB64, branch: GH_BRANCH, sha }),
-  });
-  if(!putRes.ok) throw { status: putRes.status, step: 'gravar ' + path };
-  return putRes.json();
+  return url ? url.trim() : null;
 }
 
 document.getElementById('publishBtn').addEventListener('click', async ()=>{
   if(!DATA || !JUNTAS){ showUploadStatus('Aguarde os dados carregarem antes de publicar.', false); return; }
 
-  const token = getGithubToken(false);
-  if(!token){
-    showUploadStatus('Publicação cancelada — nenhum token informado.', false);
+  const publishUrl = getPublishUrl(false);
+  if(!publishUrl){
+    showUploadStatus('Publicação cancelada — nenhuma URL informada.', false);
     return;
   }
 
   const btn = document.getElementById('publishBtn');
   btn.classList.add('loading');
-  showUploadStatus('Publicando data.json e juntas.json no repositório…', true);
+  showUploadStatus('Publicando data.json e juntas.json…', true);
   try{
-    const msg = 'Atualiza dados via painel — ' + new Date().toLocaleString('pt-BR');
-    await githubPutFile('data.json', DATA, msg, token);
-    await githubPutFile('juntas.json', JUNTAS, msg, token);
+    const res = await fetch(publishUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: DATA, juntas: JUNTAS }),
+    });
+    if(!res.ok){
+      if(res.status === 401 || res.status === 403){
+        localStorage.removeItem(LS_KEY_PUBLISH_URL);
+        throw new Error('URL/chave inválida (removida — clique em Publicar de novo para informar outra). HTTP ' + res.status);
+      }
+      throw new Error('HTTP ' + res.status);
+    }
     showUploadStatus('Publicado! data.json e juntas.json atualizados no repositório — pode levar ~1 min para o GitHub Pages republicar.', true, 'PUBLICAR');
   }catch(err){
-    if(err && err.status === 401){
-      localStorage.removeItem(LS_KEY_GH_TOKEN);
-      showUploadStatus('Token inválido ou expirado (removido — clique em Publicar de novo para informar um novo). Enquanto isso, baixando os arquivos para publicar manualmente…', false);
-    } else if(err && err.status === 403){
-      showUploadStatus('Token sem permissão de escrita neste repositório. Verifique o escopo (Contents: Read and write) — baixando os arquivos para publicar manualmente…', false);
-    } else {
-      showUploadStatus('Não foi possível publicar automaticamente (' + (err?.step || err?.message || 'erro de rede') + '). Baixando os arquivos para publicar manualmente…', false);
-    }
+    showUploadStatus('Não foi possível publicar automaticamente (' + err.message + '). Baixando os arquivos para publicar manualmente…', false);
     downloadJson(DATA, 'data.json');
     downloadJson(JUNTAS, 'juntas.json');
   }finally{
