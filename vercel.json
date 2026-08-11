@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/ControlTub-Dashboard.V5.5.html" }
+  ]
+}

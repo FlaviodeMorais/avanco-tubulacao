@@ -3,12 +3,11 @@
 //
 // Front e back rodam na MESMA origem (avanco-tubulacao.vercel.app) — por
 // isso não precisa de CORS aqui, é tudo same-origin. Pra permitir que
-// VÁRIAS pessoas do time publiquem uma atualização sem que cada uma
-// precise de um token de escrita do GitHub, o token fica guardado só aqui
+// qualquer pessoa do time publique uma atualização sem precisar de um
+// token de escrita do GitHub próprio, o token fica guardado só aqui
 // (variável de ambiente "GITHUB_TOKEN" deste projeto na Vercel) — nunca no
-// navegador de quem usa o painel. O acesso é controlado por uma chave
-// compartilhada (variável "PUBLISH_KEY"), enviada pelo dashboard como
-// ?key=... na URL.
+// navegador de quem usa o painel. Sem chave/senha nesta rota — qualquer
+// clique no botão "Publicar agora" do painel publica direto.
 
 const GH_OWNER = 'FlaviodeMorais';
 const GH_REPO = 'avanco-tubulacao';
@@ -44,11 +43,6 @@ async function githubPutFile(path, contentObj, message, token) {
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST.' }); return; }
-
-  const expectedKey = process.env.PUBLISH_KEY;
-  const givenKey = req.query.key;
-  if (!expectedKey) { res.status(500).json({ error: 'PUBLISH_KEY não configurada nas variáveis de ambiente do projeto (confira se está marcada para "Production" e refaça o deploy).' }); return; }
-  if (givenKey !== expectedKey) { res.status(401).json({ error: 'Chave inválida.' }); return; }
 
   const token = process.env.GITHUB_TOKEN;
   if (!token) { res.status(500).json({ error: 'GITHUB_TOKEN não configurado nas variáveis de ambiente do projeto (confira se está marcada para "Production" e refaça o deploy).' }); return; }
