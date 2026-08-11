@@ -393,7 +393,7 @@ main{
     </div>
     <div class="topbar-field">
       <label class="field-label">Baixar Dados</label>
-      <button id="publishBtn" class="upload-btn publish-btn" type="button" title="Publica data.json e juntas.json via Azure Function (pede a URL da Function na primeira vez) — assim todo mundo que abrir o link vê a atualização">
+      <button id="publishBtn" class="upload-btn publish-btn" type="button" title="Publica data.json e juntas.json via Vercel Function (pede a URL na primeira vez) — assim todo mundo que abrir o link vê a atualização">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Publicar agora
       </button>
@@ -1327,12 +1327,12 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
 });
 
 // ============================================================
-// PUBLICAR — chama uma Azure Function (proxy) que commita data.json/
+// PUBLICAR — chama uma Vercel Function (proxy) que commita data.json/
 // juntas.json no repositório. Ninguém precisa de token do GitHub: a Function
-// guarda o token dela (nas Application Settings), e o time compartilha só a
-// URL da Function (que já inclui a chave de acesso) — pedida uma vez e salva
-// no localStorage deste navegador. Ver azure-function/README.md no
-// repositório para como criar a Function.
+// guarda o token dela (variável de ambiente na Vercel), e o time compartilha
+// só a URL de publicação (que já inclui a chave de acesso) — pedida uma vez
+// e salva no localStorage deste navegador. Ver api/README.md no repositório
+// para como criar a Function.
 // Se der erro (sem URL configurada, URL errada, Function fora do ar), cai
 // automaticamente no fallback de baixar os 2 arquivos pra subir manualmente.
 // ============================================================
@@ -1351,9 +1351,9 @@ function getPublishUrl(forcePrompt){
   let url = !forcePrompt && localStorage.getItem(LS_KEY_PUBLISH_URL);
   if(!url){
     url = prompt(
-      'Cole a URL da Function "PublicarDados" (peça a quem configurou a Azure Function do time).\n\n' +
-      'Formato esperado: https://<sua-function>.azurewebsites.net/api/PublicarDados?code=...\n\n' +
-      'Fica salva só neste navegador — veja azure-function/README.md no repositório se ainda não configurou a Function.'
+      'Cole a URL de publicação (peça a quem configurou a Vercel Function do time).\n\n' +
+      'Formato esperado: https://<seu-projeto>.vercel.app/api/publish?key=...\n\n' +
+      'Fica salva só neste navegador — veja api/README.md no repositório se ainda não configurou a Function.'
     );
     if(url) localStorage.setItem(LS_KEY_PUBLISH_URL, url.trim());
   }
