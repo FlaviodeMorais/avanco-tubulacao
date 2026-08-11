@@ -923,7 +923,9 @@ function computeDashboardData(rows){
   });
 
   const total_spools = rows.length;
-  const nao_iniciados = rows.filter(r=>(r.smon||'').slice(0,2)==='36').length;
+  const naoIniciadosRows = rows.filter(r=>(r.smon||'').slice(0,2)==='36');
+  const nao_iniciados = naoIniciadosRows.length;
+  const nao_iniciados_ton = +(naoIniciadosRows.reduce((a,r)=>a+r.peso,0)/1000).toFixed(3);
 
   // ---- SOP: media de % avanco (peso Liberado END / peso total) entre pacotes SOP ----
   const sopMap = new Map();
@@ -997,7 +999,7 @@ function computeDashboardData(rows){
   return {
     months, stages: STAGE_NAMES, overall, by_unidade,
     kpis: {
-      total_ton: overall.total, total_spools, nao_iniciados,
+      total_ton: overall.total, total_spools, nao_iniciados, nao_iniciados_ton,
       sop_total_n: sopMap.size, sop_avg_pct, sop_completos,
       sth_total_n: sthMap.size, sth_iniciados_n, sth_completos_n, sth_pct_peso,
     },
@@ -1479,22 +1481,29 @@ function renderKPIs(){
   const total = curve.total;
   const pctAvanco = total>0 ? (last['Liberado END']/total*100) : 0;
 
-  let spoolCount, naoIniciado;
+  let spoolCount, naoIniciado, naoIniciadoTon;
   if(currentUnidade==='__ALL__'){
     spoolCount = DATA.kpis.total_spools;
     naoIniciado = DATA.kpis.nao_iniciados;
+    naoIniciadoTon = DATA.kpis.nao_iniciados_ton;
   } else {
     const rows = detailRows.filter(r=>r[3]===currentUnidade);
     spoolCount = rows.length;
-    naoIniciado = rows.filter(r=>r[6]==='36').length;
+    const paradas = rows.filter(r=>r[6]==='36');
+    naoIniciado = paradas.length;
+    naoIniciadoTon = +(paradas.reduce((a,r)=>a+r[4],0)/1000).toFixed(3);
   }
   const pctNaoIniciado = spoolCount>0 ? (naoIniciado/spoolCount*100) : 0;
+  // fallback pra data.json publicado antes desse campo existir — some no próximo upload
+  const naoIniciadoFoot = (naoIniciadoTon !== undefined && naoIniciadoTon !== null)
+    ? fmtTon(naoIniciadoTon) + ' ton a montar'
+    : fmtInt(naoIniciado) + ' spools parados';
 
   const cards = [
     {label:'Peso total do escopo', value: fmtTon(total), unit:'ton', accent:'var(--azul)', foot: (currentUnidade==='__ALL__' ? 'Todos os sistemas' : currentUnidade)},
     {label:'Spools na base', value: fmtInt(spoolCount), unit:'un', accent:'var(--verde)', foot: currentUnidade==='__ALL__' ? (fmtInt(DATA.unidades.length) + ' sistemas') : 'Sistema ' + currentUnidade},
     {label:'Avanço geral (Liberado END)', value: pctAvanco.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Liberado END'], foot: fmtTon(last['Liberado END']) + ' ton concluídas', footClass:'up'},
-    {label:'Não iniciados (montagem)', value: pctNaoIniciado.toFixed(1).replace('.',','), unit:'%', accent:'var(--laranja)', foot: fmtInt(naoIniciado) + ' spools parados', footClass:'warn'},
+    {label:'Não iniciados (montagem)', value: pctNaoIniciado.toFixed(1).replace('.',','), unit:'%', accent:'var(--laranja)', foot: naoIniciadoFoot, footClass:'warn'},
     {label:'Avanço por SOP', value: DATA.kpis.sop_avg_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-escuro)', foot: fmtInt(DATA.kpis.sop_completos) + ' de ' + fmtInt(DATA.kpis.sop_total_n) + ' pacotes (todos os sistemas)'},
     {label:'Avanço STH (peso testado)', value: DATA.kpis.sth_pct_peso.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Teste Hidrostático'], foot: fmtInt(DATA.kpis.sth_iniciados_n) + ' de ' + fmtInt(DATA.kpis.sth_total_n) + ' sistemas iniciados'},
   ];
