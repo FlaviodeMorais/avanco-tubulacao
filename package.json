@@ -1,6 +1,0 @@
-{
-  "name": "avanco-tubulacao",
-  "private": true,
-  "version": "1.0.0",
-  "description": "ControlTub — dashboard estático (GitHub Pages) + Vercel Function de publicação (api/publish.js)"
-}
