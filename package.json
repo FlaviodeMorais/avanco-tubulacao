@@ -1,0 +1,6 @@
+{
+  "name": "avanco-tubulacao",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ControlTub — dashboard + Vercel Function de publicação (api/publish.js), servidos juntos em avanco-tubulacao.vercel.app"
+}
