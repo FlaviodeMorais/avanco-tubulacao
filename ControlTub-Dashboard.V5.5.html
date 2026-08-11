@@ -128,6 +128,33 @@ main{
 .publish-btn{ background:var(--branco); color:var(--azul-escuro); border-color:var(--azul-escuro); }
 .publish-btn:hover{ background:var(--azul-escuro); color:var(--branco); }
 
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(26,26,26,.55);
+  display:flex; align-items:center; justify-content:center; z-index:1000; padding:20px;
+}
+.modal-card{
+  background:var(--branco); border-radius:4px; padding:26px; max-width:420px; width:100%;
+  box-shadow:0 12px 40px rgba(0,0,0,.25);
+}
+.modal-card h3{
+  margin:0 0 8px; font-family:var(--display); font-size:16px; font-weight:700; color:var(--text-primary);
+}
+.modal-card p{ margin:0 0 16px; font-size:12.5px; color:var(--text-muted); line-height:1.5; }
+.modal-input{
+  width:100%; background:var(--bg-shade); border:1px solid var(--hairline); border-radius:3px;
+  padding:11px 12px; font-family:var(--body); font-size:13.5px; color:var(--text-primary);
+}
+.modal-input:focus{ outline:2px solid var(--azul); outline-offset:1px; }
+.modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+.modal-btn{
+  border-radius:3px; padding:9px 16px; font-family:var(--body); font-size:12.5px; font-weight:700;
+  cursor:pointer; border:1.5px solid transparent;
+}
+.modal-btn-ghost{ background:var(--branco); color:var(--text-muted); border-color:var(--hairline); }
+.modal-btn-ghost:hover{ background:var(--bg-shade); }
+.modal-btn-primary{ background:var(--azul-escuro); color:var(--branco); border-color:var(--azul-escuro); }
+.modal-btn-primary:hover{ opacity:.88; }
+
 .upload-status{
   max-width:1680px; margin:0 auto; padding:10px 28px 0;
   font-family:var(--body); font-size:12.5px;
@@ -393,7 +420,7 @@ main{
     </div>
     <div class="topbar-field">
       <label class="field-label">Baixar Dados</label>
-      <button id="publishBtn" class="upload-btn publish-btn" type="button" title="Publica data.json e juntas.json via Vercel Function (pede a URL na primeira vez) — assim todo mundo que abrir o link vê a atualização">
+      <button id="publishBtn" class="upload-btn publish-btn" type="button" title="Publica data.json e juntas.json via Vercel Function (pede a chave de acesso na primeira vez) — assim todo mundo que abrir o link vê a atualização">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Publicar agora
       </button>
@@ -691,6 +718,18 @@ main{
   </footer>
 
 </main>
+
+<div id="publishKeyModal" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <h3>Chave de publicação</h3>
+    <p>Peça a chave a quem configurou a Vercel Function do time. Fica salva só neste navegador.</p>
+    <input type="password" id="publishKeyInput" class="modal-input" placeholder="Cole a chave aqui" autocomplete="off">
+    <div class="modal-actions">
+      <button id="publishKeyCancel" class="modal-btn modal-btn-ghost" type="button">Cancelar</button>
+      <button id="publishKeySave" class="modal-btn modal-btn-primary" type="button">Salvar e publicar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 let DATA = null; // populado via fetch("data.json") ou localStorage — ver boot()
@@ -1329,14 +1368,16 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
 // ============================================================
 // PUBLICAR — chama uma Vercel Function (proxy) que commita data.json/
 // juntas.json no repositório. Ninguém precisa de token do GitHub: a Function
-// guarda o token dela (variável de ambiente na Vercel), e o time compartilha
-// só a URL de publicação (que já inclui a chave de acesso) — pedida uma vez
-// e salva no localStorage deste navegador. Ver api/README.md no repositório
-// para como criar a Function.
-// Se der erro (sem URL configurada, URL errada, Function fora do ar), cai
-// automaticamente no fallback de baixar os 2 arquivos pra subir manualmente.
+// guarda o token dela (variável de ambiente na Vercel). A URL da Function é
+// fixa (conhecida); só a chave de acesso é pedida — uma vez, num campo na
+// própria tela (não um prompt() do navegador) — e salva no localStorage
+// deste navegador. Ver api/README.md no repositório para como criar a
+// Function.
+// Se der erro (sem chave configurada, chave errada, Function fora do ar),
+// cai automaticamente no fallback de baixar os 2 arquivos pra subir manualmente.
 // ============================================================
-const LS_KEY_PUBLISH_URL = 'controltub_publish_url_v1';
+const PUBLISH_ENDPOINT = 'https://avanco-tubulacao.vercel.app/api/publish';
+const LS_KEY_PUBLISH_KEY = 'controltub_publish_key_v1';
 
 function downloadJson(obj, filename){
   const blob = new Blob([JSON.stringify(obj)], { type: 'application/json' });
@@ -1347,25 +1388,47 @@ function downloadJson(obj, filename){
   URL.revokeObjectURL(url);
 }
 
-function getPublishUrl(forcePrompt){
-  let url = !forcePrompt && localStorage.getItem(LS_KEY_PUBLISH_URL);
-  if(!url){
-    url = prompt(
-      'Cole a URL de publicação (peça a quem configurou a Vercel Function do time).\n\n' +
-      'Formato esperado: https://<seu-projeto>.vercel.app/api/publish?key=...\n\n' +
-      'Fica salva só neste navegador — veja api/README.md no repositório se ainda não configurou a Function.'
-    );
-    if(url) localStorage.setItem(LS_KEY_PUBLISH_URL, url.trim());
+function askPublishKey(){
+  return new Promise(resolve=>{
+    const modal = document.getElementById('publishKeyModal');
+    const input = document.getElementById('publishKeyInput');
+    const saveBtn = document.getElementById('publishKeySave');
+    const cancelBtn = document.getElementById('publishKeyCancel');
+    input.value = '';
+    modal.hidden = false;
+    input.focus();
+
+    function cleanup(){
+      modal.hidden = true;
+      saveBtn.removeEventListener('click', onSave);
+      cancelBtn.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKeydown);
+    }
+    function onSave(){ const v = input.value.trim(); cleanup(); resolve(v || null); }
+    function onCancel(){ cleanup(); resolve(null); }
+    function onKeydown(e){ if(e.key==='Enter') onSave(); else if(e.key==='Escape') onCancel(); }
+
+    saveBtn.addEventListener('click', onSave);
+    cancelBtn.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKeydown);
+  });
+}
+
+async function getPublishKey(forcePrompt){
+  let key = !forcePrompt && localStorage.getItem(LS_KEY_PUBLISH_KEY);
+  if(!key){
+    key = await askPublishKey();
+    if(key) localStorage.setItem(LS_KEY_PUBLISH_KEY, key);
   }
-  return url ? url.trim() : null;
+  return key || null;
 }
 
 document.getElementById('publishBtn').addEventListener('click', async ()=>{
   if(!DATA || !JUNTAS){ showUploadStatus('Aguarde os dados carregarem antes de publicar.', false); return; }
 
-  const publishUrl = getPublishUrl(false);
-  if(!publishUrl){
-    showUploadStatus('Publicação cancelada — nenhuma URL informada.', false);
+  const key = await getPublishKey(false);
+  if(!key){
+    showUploadStatus('Publicação cancelada — nenhuma chave informada.', false);
     return;
   }
 
@@ -1373,15 +1436,15 @@ document.getElementById('publishBtn').addEventListener('click', async ()=>{
   btn.classList.add('loading');
   showUploadStatus('Publicando data.json e juntas.json…', true);
   try{
-    const res = await fetch(publishUrl, {
+    const res = await fetch(PUBLISH_ENDPOINT + '?key=' + encodeURIComponent(key), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: DATA, juntas: JUNTAS }),
     });
     if(!res.ok){
       if(res.status === 401 || res.status === 403){
-        localStorage.removeItem(LS_KEY_PUBLISH_URL);
-        throw new Error('URL/chave inválida (removida — clique em Publicar de novo para informar outra). HTTP ' + res.status);
+        localStorage.removeItem(LS_KEY_PUBLISH_KEY);
+        throw new Error('Chave inválida (removida — clique em Publicar de novo para informar outra). HTTP ' + res.status);
       }
       throw new Error('HTTP ' + res.status);
     }

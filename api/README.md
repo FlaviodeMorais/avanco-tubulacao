@@ -28,16 +28,17 @@ de qualquer limite do free tier).
      (ex. gere uma string aleatória longa).
 5. **Deploy**.
 
-### 2. Montar a URL de publicação
+### 2. Conferir a URL do projeto
 1. Depois do deploy, a Vercel mostra a URL do projeto — algo como
    `https://avanco-tubulacao.vercel.app` (pode vir com um sufixo se o nome
    já estiver em uso).
-2. A URL completa pra colar no dashboard é:
-   ```
-   https://<seu-projeto>.vercel.app/api/publish?key=<valor de PUBLISH_KEY>
-   ```
-3. Cole essa URL no dashboard na primeira vez que clicar em **"Baixar Dados"
-   → Publicar agora** — fica salva só naquele navegador.
+2. Essa URL já está fixada no código do dashboard
+   (`PUBLISH_ENDPOINT` em `ControlTub-Dashboard.V5.5.html`). Se o nome do
+   projeto na Vercel vier diferente de `avanco-tubulacao`, atualize essa
+   constante pra bater com a URL real.
+3. No dashboard, clique em **"Baixar Dados" → Publicar agora** — ele só pede
+   a **chave** (o valor de `PUBLISH_KEY`, não a URL inteira), num campo na
+   própria tela. Fica salva só naquele navegador.
 
 ## Detalhes
 
@@ -52,7 +53,7 @@ de qualquer limite do free tier).
 
 - O `GITHUB_TOKEN` nunca sai desta Function — não fica em nenhum navegador,
   não fica no código do dashboard.
-- A URL completa (com `?key=`) é a credencial de quem pode publicar — trate
-  como senha: não publique em lugar público, não compartilhe fora do time.
-  Pra revogar, troque `PUBLISH_KEY` nas variáveis de ambiente do projeto
-  (Vercel → Settings → Environment Variables) e redistribua a URL nova.
+- A chave (`PUBLISH_KEY`) é a credencial de quem pode publicar — trate como
+  senha: não publique em lugar público, não compartilhe fora do time. Pra
+  revogar, troque `PUBLISH_KEY` nas variáveis de ambiente do projeto
+  (Vercel → Settings → Environment Variables) e redistribua a chave nova.
