@@ -137,9 +137,10 @@ main{
 .upload-status.err{ color:#C0392B; font-weight:700; }
 
 .kpi-row{
-  display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:14px;
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px;
   margin:28px 0;
 }
+.kpi-row-3{ margin-top:-14px; }
 .kpi-card{
   background:var(--bg-panel);
   border:1px solid var(--hairline);
@@ -409,6 +410,8 @@ main{
 
   <section class="kpi-row" id="kpiRow"></section>
 
+  <section class="kpi-row kpi-row-3" id="kpiRowExtra"></section>
+
   <section class="panel chart-panel">
     <div class="panel-head">
       <div>
@@ -490,8 +493,8 @@ main{
     <section class="panel">
       <div class="panel-head">
         <div>
-          <h2>Velocidade de Fabricação <span class="mono-tag">TON/MÊS</span></h2>
-          <p class="panel-sub">Peso fabricado por mês — ritmo de avanço, não acumulado</p>
+          <h2>Velocidade de Fabricação <span class="mono-tag">TON/DIA</span></h2>
+          <p class="panel-sub">Peso fabricado no mês ÷ dias corridos do mês — ritmo diário, não acumulado</p>
         </div>
       </div>
       <div class="chart-wrap-sm"><canvas id="velFabricacaoChart"></canvas></div>
@@ -500,8 +503,8 @@ main{
     <section class="panel">
       <div class="panel-head">
         <div>
-          <h2>Velocidade de Montagem <span class="mono-tag">TON/MÊS</span></h2>
-          <p class="panel-sub">Peso liberado END por mês — ritmo de avanço, não acumulado</p>
+          <h2>Velocidade de Montagem <span class="mono-tag">TON/DIA</span></h2>
+          <p class="panel-sub">Peso liberado END no mês ÷ dias corridos do mês — ritmo diário, não acumulado</p>
         </div>
       </div>
       <div class="chart-wrap-sm"><canvas id="velMontagemChart"></canvas></div>
@@ -601,8 +604,8 @@ main{
     <section class="panel">
       <div class="panel-head">
         <div>
-          <h2>Velocidade de Fabricação por Material <span class="mono-tag">TON/MÊS</span></h2>
-          <p class="panel-sub">Peso fabricado por mês, por categoria de material — um gráfico por material (escalas independentes)</p>
+          <h2>Velocidade de Fabricação por Material <span class="mono-tag">TON/DIA</span></h2>
+          <p class="panel-sub">Peso fabricado no mês ÷ dias corridos do mês, por categoria de material — um gráfico por material (escalas independentes)</p>
         </div>
       </div>
       <div class="mini-multiples" id="velFabricacaoMaterialMini"></div>
@@ -825,6 +828,24 @@ const RAW_STAGE_HEADER = {
 // na aba original "SGS"; usadas para o Tempo Médio de Fabricação por Material
 // (corte -> liberado na fábrica), independente do fluxo de Montagem acima.
 const RAW_FAB_COLS = { corte: 'dtcort', liberado_fab: 'libdat' };
+// Colunas extras do arquivo original (aba "SGS") — opcionais: se ausentes, os
+// KPIs de Pintura/Isolamento/Spools AC ≤2" ficam zerados, mas nada quebra.
+// pintura/isolamento usam a mesma "area" (m²) já cadastrada por spool;
+// isol = código de especificação de isolamento ("NI" = Não Isolado, os
+// demais códigos — PP/CC/AE/FITA — indicam que o spool precisa de isolamento).
+const RAW_EXTRA_COLS = { area: 'area', dipol: 'dipol', pintura: 'pintacab', isolTipo: 'isol', isolData: 'isdat' };
+
+// Converte diâmetro em polegadas no formato da planilha ("2\"", "1.1/2\"", "3/4\"") pra número.
+function parsePolegadas(s){
+  if(!s) return null;
+  const str = String(s).replace(/"/g,'').trim();
+  const misto = str.match(/^(\d+)\.(\d+)\/(\d+)$/); // "1.1/2" = 1 + 1/2
+  if(misto) return +misto[1] + (+misto[2] / +misto[3]);
+  const fracao = str.match(/^(\d+)\/(\d+)$/); // "3/4"
+  if(fracao) return +fracao[1] / +fracao[2];
+  const n = parseFloat(str);
+  return isNaN(n) ? null : n;
+}
 
 function monthEndOf(y, m){ return new Date(y, m+1, 0, 23, 59, 59); }
 function monthKey(y, m){ return y*12+m; }
@@ -852,11 +873,13 @@ function computeDashboardData(rows){
 
   const months = [];
   const monthEnds = [];
+  const days_in_month = [];
   for(let k=minKey; k<=maxKey; k++){
     const y = Math.floor(k/12), m = k%12;
     const label = MONTH_ABBR[m] + '/' + String(y).slice(2);
     months.push(label.charAt(0).toUpperCase() + label.slice(1));
     monthEnds.push(monthEndOf(y,m));
+    days_in_month.push(monthEndOf(y,m).getDate());
   }
 
   function buildCurve(subset){
@@ -972,6 +995,26 @@ function computeDashboardData(rows){
   const pesoSthOk = rows.filter(r=>r.stageDates['Teste Hidrostático'] instanceof Date && !isNaN(r.stageDates['Teste Hidrostático'])).reduce((a,r)=>a+r.peso,0);
   const sth_pct_peso = overall.total>0 ? +((pesoSthOk/1000)/overall.total*100).toFixed(1) : 0;
 
+  // ---- Pintura: área (m²) de todos os spools vs. área com pintura de acabamento feita ----
+  const pintura_area_previsto = +rows.reduce((a,r)=>a+(r.area||0),0).toFixed(1);
+  const pintura_area_realizado = +rows.filter(r=>r.dtPintura instanceof Date && !isNaN(r.dtPintura)).reduce((a,r)=>a+(r.area||0),0).toFixed(1);
+  const pintura_pct = pintura_area_previsto>0 ? +(pintura_area_realizado/pintura_area_previsto*100).toFixed(1) : 0;
+
+  // ---- Isolamento: área (m²) só dos spools com isolamento previsto (isolTipo != "NI") ----
+  const rowsComIsolamento = rows.filter(r=>r.isolTipo && r.isolTipo !== 'NI');
+  const isolamento_area_previsto = +rowsComIsolamento.reduce((a,r)=>a+(r.area||0),0).toFixed(1);
+  const isolamento_area_realizado = +rowsComIsolamento.filter(r=>r.dtIsolamento instanceof Date && !isNaN(r.dtIsolamento)).reduce((a,r)=>a+(r.area||0),0).toFixed(1);
+  const isolamento_pct = isolamento_area_previsto>0 ? +(isolamento_area_realizado/isolamento_area_previsto*100).toFixed(1) : 0;
+
+  // ---- Spools AC com Ø ≤ 2" : peso (ton) fabricado+montado (Fabricado e Liberado END) ----
+  const rowsAc2 = rows.filter(r=>r.mat==='AC' && parsePolegadas(r.dipol) !== null && parsePolegadas(r.dipol) <= 2);
+  const spoolsAc2_previsto_ton = +(rowsAc2.reduce((a,r)=>a+r.peso,0)/1000).toFixed(3);
+  const spoolsAc2_realizado_ton = +(rowsAc2.filter(r=>
+    r.stageDates['Fabricado'] instanceof Date && !isNaN(r.stageDates['Fabricado']) &&
+    r.stageDates['Liberado END'] instanceof Date && !isNaN(r.stageDates['Liberado END'])
+  ).reduce((a,r)=>a+r.peso,0)/1000).toFixed(3);
+  const spoolsAc2_pct = spoolsAc2_previsto_ton>0 ? +(spoolsAc2_realizado_ton/spoolsAc2_previsto_ton*100).toFixed(1) : 0;
+
   const status_fab = [...new Set(rows.map(r=>r.sfab).filter(Boolean))].sort();
   const status_mon = [...new Set(rows.map(r=>r.smon).filter(Boolean))].sort();
 
@@ -998,11 +1041,14 @@ function computeDashboardData(rows){
     .slice(0,20);
 
   return {
-    months, stages: STAGE_NAMES, overall, by_unidade,
+    months, days_in_month, stages: STAGE_NAMES, overall, by_unidade,
     kpis: {
       total_ton: overall.total, total_spools, nao_iniciados, nao_iniciados_ton,
       sop_total_n: sopMap.size, sop_avg_pct, sop_completos, sop_prontos_ton,
       sth_total_n: sthMap.size, sth_iniciados_n, sth_completos_n, sth_pct_peso,
+      pintura_area_previsto, pintura_area_realizado, pintura_pct,
+      isolamento_area_previsto, isolamento_area_realizado, isolamento_pct,
+      spoolsAc2_previsto_ton, spoolsAc2_realizado_ton, spoolsAc2_pct,
     },
     unidades, status_fab, status_mon, records, sop_ranking, linhas_ranking,
     materiais, fabricado_por_material, by_sop, tempo_medio_fabricacao_material,
@@ -1069,6 +1115,11 @@ function parseWorkbookToRows(wb){
           corte:        excelDateToJs(row[RAW_FAB_COLS.corte]),
           liberado_fab: excelDateToJs(row[RAW_FAB_COLS.liberado_fab]),
         },
+        area:      Number(row[RAW_EXTRA_COLS.area]) || 0,
+        dipol:     row[RAW_EXTRA_COLS.dipol] ? String(row[RAW_EXTRA_COLS.dipol]) : '',
+        dtPintura: excelDateToJs(row[RAW_EXTRA_COLS.pintura]),
+        isolTipo:  row[RAW_EXTRA_COLS.isolTipo] ? String(row[RAW_EXTRA_COLS.isolTipo]) : '',
+        dtIsolamento: excelDateToJs(row[RAW_EXTRA_COLS.isolData]),
       };
     });
   }
@@ -1111,6 +1162,10 @@ function parseWorkbookToRows(wb){
         mat:   C.mat && row[C.mat] ? String(row[C.mat]) : '',
         stageDates,
         fabDates: { corte: null, liberado_fab: null }, // aba "Dados" não traz o lado Fabricação (fábrica)
+        // aba "Dados" não traz área/diâmetro/pintura/isolamento — só o arquivo
+        // original (aba "SGS") tem essas colunas; KPIs de Pintura/Isolamento/
+        // Spools AC ≤2" ficam zerados quando os dados vêm por este caminho.
+        area: 0, dipol: '', dtPintura: null, isolTipo: '', dtIsolamento: null,
       };
     });
   }
@@ -1481,6 +1536,8 @@ function renderKPIs(){
   const last = stages.reduce((acc,s)=>{ acc[s]=curve.series[s][curve.series[s].length-1]; return acc; },{});
   const total = curve.total;
   const pctAvanco = total>0 ? (last['Liberado END']/total*100) : 0;
+  const pctFabricado = total>0 ? (last['Fabricado']/total*100) : 0;
+  const aRealizarFab = +(total - last['Fabricado']).toFixed(3);
 
   let spoolCount, naoIniciado, naoIniciadoTon;
   if(currentUnidade==='__ALL__'){
@@ -1499,18 +1556,13 @@ function renderKPIs(){
   const naoIniciadoFoot = (naoIniciadoTon !== undefined && naoIniciadoTon !== null)
     ? fmtTon(naoIniciadoTon) + ' ton a montar'
     : fmtInt(naoIniciado) + ' spools parados';
-  // fallback pra data.json publicado antes desse campo existir — some no próximo upload
-  const sopFoot = (DATA.kpis.sop_prontos_ton !== undefined && DATA.kpis.sop_prontos_ton !== null)
-    ? fmtTon(DATA.kpis.sop_prontos_ton) + ' ton prontos'
-    : fmtInt(DATA.kpis.sop_completos) + ' de ' + fmtInt(DATA.kpis.sop_total_n) + ' pacotes (todos os sistemas)';
 
   const cards = [
     {label:'Peso total do escopo', value: fmtTon(total), unit:'ton', accent:'var(--azul)', foot: (currentUnidade==='__ALL__' ? 'Todos os sistemas' : currentUnidade)},
+    {label:'Fabricação', value: pctFabricado.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Fabricado'], foot: fmtTon(total) + ' ton previstas · ' + fmtTon(aRealizarFab) + ' ton a realizar'},
     {label:'Spools na base', value: fmtInt(spoolCount), unit:'un', accent:'var(--verde)', foot: currentUnidade==='__ALL__' ? (fmtInt(DATA.unidades.length) + ' sistemas') : 'Sistema ' + currentUnidade},
     {label:'Avanço geral (Liberado END)', value: pctAvanco.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Liberado END'], foot: fmtTon(last['Liberado END']) + ' ton concluídas', footClass:'up'},
     {label:'Não iniciados (montagem)', value: pctNaoIniciado.toFixed(1).replace('.',','), unit:'%', accent:'var(--laranja)', foot: naoIniciadoFoot, footClass:'warn'},
-    {label:'Avanço por SOP', value: DATA.kpis.sop_avg_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-escuro)', foot: sopFoot},
-    {label:'Avanço STH (peso testado)', value: DATA.kpis.sth_pct_peso.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Teste Hidrostático'], foot: fmtInt(DATA.kpis.sth_iniciados_n) + ' de ' + fmtInt(DATA.kpis.sth_total_n) + ' sistemas iniciados'},
   ];
 
   const row = document.getElementById('kpiRow');
@@ -1519,6 +1571,50 @@ function renderKPIs(){
       <p class="kpi-label">${c.label}</p>
       <p class="kpi-value">${c.value}<span class="unit">${c.unit}</span></p>
       <p class="kpi-foot ${c.footClass||''}">${c.foot}</p>
+    </div>
+  `).join('');
+}
+
+// ---------- KPIs extra: Pintura, Isolamento, Spools AC Ø≤2" ----------
+// Só vêm preenchidos quando o upload é o arquivo original (aba "SGS"), que
+// tem as colunas de área/diâmetro/pintura/isolamento — via aba "Dados"
+// simplificada, esses 3 cards ficam com 0.
+function renderKPIsExtra(){
+  const k = DATA.kpis;
+  const el = document.getElementById('kpiRowExtra');
+  el.hidden = false;
+
+  // fallback pra data.json publicado antes desse campo existir — some no próximo upload
+  const sopFoot = (k.sop_prontos_ton !== undefined && k.sop_prontos_ton !== null)
+    ? fmtTon(k.sop_prontos_ton) + ' ton prontos'
+    : fmtInt(k.sop_completos) + ' de ' + fmtInt(k.sop_total_n) + ' pacotes (todos os sistemas)';
+
+  const cards = [
+    {label:'Avanço por SOP', value: k.sop_avg_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-escuro)', foot: sopFoot},
+    {label:'Avanço STH (peso testado)', value: k.sth_pct_peso.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Teste Hidrostático'], foot: fmtInt(k.sth_iniciados_n) + ' de ' + fmtInt(k.sth_total_n) + ' sistemas iniciados'},
+  ];
+
+  // Pintura/Isolamento/Spools AC só existem quando o upload é o arquivo
+  // original (aba "SGS"); cada um entra individualmente se o dado existir —
+  // um campo faltando não deve esconder os outros nem os dois de cima.
+  if(k.pintura_pct !== undefined){
+    cards.push({label:'Pintura', value: k.pintura_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-escuro)',
+      foot: fmtTon(k.pintura_area_previsto) + ' m² previstos · ' + fmtTon(k.pintura_area_realizado) + ' m² realizados'});
+  }
+  if(k.isolamento_pct !== undefined){
+    cards.push({label:'Isolamento', value: k.isolamento_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-claro)',
+      foot: fmtTon(k.isolamento_area_previsto) + ' m² previstos · ' + fmtTon(k.isolamento_area_realizado) + ' m² realizados'});
+  }
+  if(k.spoolsAc2_pct !== undefined){
+    cards.push({label:'Spools AC — Ø ≤ 2"', value: k.spoolsAc2_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--verde)',
+      foot: fmtTon(k.spoolsAc2_previsto_ton) + ' ton previstas · ' + fmtTon(k.spoolsAc2_realizado_ton) + ' ton prontas'});
+  }
+
+  el.innerHTML = cards.map(c => `
+    <div class="kpi-card" style="--kpi-accent:${c.accent}">
+      <p class="kpi-label">${c.label}</p>
+      <p class="kpi-value">${c.value}<span class="unit">${c.unit}</span></p>
+      <p class="kpi-foot">${c.foot}</p>
     </div>
   `).join('');
 }
@@ -1809,25 +1905,30 @@ function renderSopCurve(sopCode){
   });
 }
 
-// ---------- Velocidade de Fabricação (ton fabricadas por mês, geral, não acumulado) ----------
+// ---------- Velocidade de Fabricação (ton/dia fabricadas, geral, não acumulado) ----------
 let chartVelFabricacao = null;
 function renderVelocidadeFabricacao(){
   const curve = getCurve();
   const months = DATA.months;
+  const dias = DATA.days_in_month || [];
   const fab = curve.series['Fabricado'];
-  const delta = fab.map((v,i)=> i===0 ? v : +(v-fab[i-1]).toFixed(3));
+  // Velocidade = ton do mês / dias corridos do mês — não o volume mensal bruto.
+  const delta = fab.map((v,i)=>{
+    const d = i===0 ? v : v-fab[i-1];
+    return +(d/(dias[i]||30)).toFixed(3);
+  });
 
   const ctx = document.getElementById('velFabricacaoChart').getContext('2d');
   if(chartVelFabricacao) chartVelFabricacao.destroy();
   chartVelFabricacao = new Chart(ctx, {
     type:'bar',
-    data:{ labels: months, datasets:[{ label:'Ton fabricadas no mês', data: delta, backgroundColor:STAGE_COLORS['Fabricado'], borderRadius:2 }] },
+    data:{ labels: months, datasets:[{ label:'Ton/dia fabricadas', data: delta, backgroundColor:STAGE_COLORS['Fabricado'], borderRadius:2 }] },
     options:{
       responsive:true, maintainAspectRatio:false,
       scales:{
         x:{ grid:{display:false}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10},maxTicksLimit:14,autoSkip:true,maxRotation:0} },
         y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}},
-            title:{display:true,text:'ton/mês',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
+            title:{display:true,text:'ton/dia',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
       },
       plugins:{
         legend:{display:false},
@@ -1835,7 +1936,7 @@ function renderVelocidadeFabricacao(){
           backgroundColor:'#fff', borderColor:STAGE_COLORS['Fabricado'], borderWidth:1,
           titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
           titleFont:{family:'Trebuchet MS',size:11,weight:'bold'}, bodyFont:{family:'Trebuchet MS',size:11},
-          callbacks:{ label: i => `${fmtTon(i.parsed.y)} ton` }
+          callbacks:{ label: i => `${fmtTon(i.parsed.y)} ton/dia` }
         }
       }
     }
@@ -1885,18 +1986,23 @@ function renderMiniMultiplesBar(container, months, categories, deltaFn, chartRef
   });
 }
 
-// ---------- Velocidade de Fabricação por Material (ton fabricadas/mês) ----------
+// ---------- Velocidade de Fabricação por Material (ton/dia fabricadas) ----------
 // Não reage ao filtro de sistema — é uma visão global, à parte das curvas por unidade.
 let chartsVelFabricacaoMaterial = [];
 function renderVelocidadeFabricacaoMaterial(){
   const container = document.getElementById('velFabricacaoMaterialMini');
   if(!container) return;
   const months = DATA.months;
+  const dias = DATA.days_in_month || [];
   const materiais = DATA.materiais || [];
   renderMiniMultiplesBar(container, months, materiais, mat=>{
     const cum = DATA.fabricado_por_material[mat] || [];
-    return cum.map((v,j)=> j===0 ? v : +(v-cum[j-1]).toFixed(3));
-  }, chartsVelFabricacaoMaterial, v => `${fmtTon(v)} ton`, materialLabel, materialColor);
+    // Velocidade = ton do mês / dias corridos do mês — não o volume mensal bruto.
+    return cum.map((v,j)=>{
+      const d = j===0 ? v : v-cum[j-1];
+      return +(d/(dias[j]||30)).toFixed(3);
+    });
+  }, chartsVelFabricacaoMaterial, v => `${fmtTon(v)} ton/dia`, materialLabel, materialColor);
 }
 
 // ---------- Tempo Médio de Fabricação por Material (dias, Corte -> Liberado na Fábrica) ----------
@@ -1936,25 +2042,30 @@ function renderTempoFabMaterial(){
   });
 }
 
-// ---------- Velocidade de Montagem (ton liberadas por mês, geral, não acumulado) ----------
+// ---------- Velocidade de Montagem (ton/dia liberadas, geral, não acumulado) ----------
 let chartVelMontagem = null;
 function renderVelocidadeMontagem(){
   const curve = getCurve();
   const months = DATA.months;
+  const dias = DATA.days_in_month || [];
   const lib = curve.series['Liberado END'];
-  const delta = lib.map((v,i)=> i===0 ? v : +(v-lib[i-1]).toFixed(3));
+  // Velocidade = ton do mês / dias corridos do mês — não o volume mensal bruto.
+  const delta = lib.map((v,i)=>{
+    const d = i===0 ? v : v-lib[i-1];
+    return +(d/(dias[i]||30)).toFixed(3);
+  });
 
   const ctx = document.getElementById('velMontagemChart').getContext('2d');
   if(chartVelMontagem) chartVelMontagem.destroy();
   chartVelMontagem = new Chart(ctx, {
     type:'bar',
-    data:{ labels: months, datasets:[{ label:'Ton liberadas no mês', data: delta, backgroundColor:STAGE_COLORS['Liberado END'], borderRadius:2 }] },
+    data:{ labels: months, datasets:[{ label:'Ton/dia liberadas', data: delta, backgroundColor:STAGE_COLORS['Liberado END'], borderRadius:2 }] },
     options:{
       responsive:true, maintainAspectRatio:false,
       scales:{
         x:{ grid:{display:false}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10},maxTicksLimit:14,autoSkip:true,maxRotation:0} },
         y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}},
-            title:{display:true,text:'ton/mês',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
+            title:{display:true,text:'ton/dia',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
       },
       plugins:{
         legend:{display:false},
@@ -1962,7 +2073,7 @@ function renderVelocidadeMontagem(){
           backgroundColor:'#fff', borderColor:STAGE_COLORS['Liberado END'], borderWidth:1,
           titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
           titleFont:{family:'Trebuchet MS',size:11,weight:'bold'}, bodyFont:{family:'Trebuchet MS',size:11},
-          callbacks:{ label: i => `${fmtTon(i.parsed.y)} ton` }
+          callbacks:{ label: i => `${fmtTon(i.parsed.y)} ton/dia` }
         }
       }
     }
@@ -2077,6 +2188,7 @@ function initFromData(newData){
   document.getElementById('searchInput').value = '';
 
   renderKPIs();
+  renderKPIsExtra();
   renderChart();
   renderRundownChart();
   renderSummaryTable();
