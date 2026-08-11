@@ -2339,10 +2339,12 @@ function initJuntas(){
 }
 
 // ============================================================
-// BOOT — carrega DATA/JUNTAS de localStorage (upload salvo neste navegador)
-// ou, na ausência, via fetch de data.json/juntas.json (publicados junto com
-// a página). Nunca deixa a tela num estado quebrado: se um dos dois falhar,
-// o outro continua funcionando normalmente e o erro é reportado com clareza.
+// BOOT — sempre busca data.json/juntas.json publicados (fonte oficial,
+// igual pra todo mundo que abrir o link). O localStorage NUNCA tem
+// prioridade sobre o publicado — só entra como fallback se a busca falhar
+// (ex.: sem conexão), usando a última cópia salva neste navegador.
+// Nunca deixa a tela num estado quebrado: se um dos dois falhar, o outro
+// continua funcionando normalmente e o erro é reportado com clareza.
 // ============================================================
 async function fetchJson(url){
   const res = await fetch(url, { cache: 'no-cache' });
@@ -2354,28 +2356,27 @@ async function boot(){
   showUploadStatus('Carregando dados…', true);
 
   let dataErr = null, juntasErr = null;
+  let dataFromCache = false, juntasFromCache = false;
 
-  if(_savedData){
-    DATA = _savedData;
-  } else {
-    try { DATA = await fetchJson('data.json'); }
-    catch(err){ dataErr = err; console.error('Falha ao carregar data.json:', err); }
+  try { DATA = await fetchJson('data.json'); }
+  catch(err){
+    dataErr = err; console.error('Falha ao carregar data.json:', err);
+    if(_savedData){ DATA = _savedData; dataFromCache = true; }
   }
 
-  if(_savedJuntas){
-    JUNTAS = _savedJuntas;
-  } else {
-    try { JUNTAS = await fetchJson('juntas.json'); }
-    catch(err){ juntasErr = err; console.error('Falha ao carregar juntas.json:', err); }
+  try { JUNTAS = await fetchJson('juntas.json'); }
+  catch(err){
+    juntasErr = err; console.error('Falha ao carregar juntas.json:', err);
+    if(_savedJuntas){ JUNTAS = _savedJuntas; juntasFromCache = true; }
   }
 
   if(DATA) initFromData(DATA);
   if(JUNTAS) initJuntas();
 
-  if(dataErr || juntasErr){
+  if((dataErr && !dataFromCache) || (juntasErr && !juntasFromCache)){
     const partes = [];
-    if(dataErr) partes.push('Spools (data.json)');
-    if(juntasErr) partes.push('Juntas (juntas.json)');
+    if(dataErr && !dataFromCache) partes.push('Spools (data.json)');
+    if(juntasErr && !juntasFromCache) partes.push('Juntas (juntas.json)');
     showUploadStatus(
       `Não foi possível carregar: ${partes.join(' e ')}. Verifique sua conexão e recarregue a página — ` +
       (DATA||JUNTAS ? 'os dados que carregaram normalmente continuam disponíveis.' : 'nenhum dado pôde ser exibido.'),
@@ -2384,16 +2385,18 @@ async function boot(){
     return;
   }
 
-  // Avisa quando o que está na tela veio de um upload salvo neste navegador,
-  // não dos dados publicados — evita confundir o usuário sobre qual base está vendo.
-  if(_savedData || _savedJuntas){
+  // Só cai aqui se a busca dos dados publicados falhou e usamos a cópia
+  // salva neste navegador como fallback — deixa claro que pode estar
+  // desatualizada, ao contrário do caso normal (dados publicados, iguais
+  // pra qualquer um que abrir o link).
+  if(dataFromCache || juntasFromCache){
     const meta = loadFromLocalStorage(LS_KEY_META) || {};
     const parts = [];
-    if(_savedData && meta.dataFile) parts.push(`Spools: "${escapeHtml(meta.dataFile)}"`);
-    if(_savedJuntas && meta.juntasFile) parts.push(`Juntas: "${escapeHtml(meta.juntasFile)}"`);
+    if(dataFromCache && meta.dataFile) parts.push(`Spools: "${escapeHtml(meta.dataFile)}"`);
+    if(juntasFromCache && meta.juntasFile) parts.push(`Juntas: "${escapeHtml(meta.juntasFile)}"`);
     showUploadStatus(
-      'Exibindo dados salvos neste navegador (última atualização' + (parts.length ? ' — ' + parts.join(' · ') : '') + '). Válido só neste dispositivo/navegador.',
-      true
+      'Sem conexão com os dados publicados — exibindo a última cópia salva neste navegador' + (parts.length ? ' (' + parts.join(' · ') + ')' : '') + '. Pode estar desatualizada; recarregue a página quando a conexão voltar.',
+      false
     );
   } else {
     document.getElementById('uploadStatus').hidden = true;
