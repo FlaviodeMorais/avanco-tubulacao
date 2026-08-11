@@ -161,6 +161,7 @@ main{
   color:var(--text-primary); margin:0 0 6px;
 }
 .kpi-value .unit{ font-size:14px; color:var(--text-muted); font-weight:400; margin-left:4px; }
+.kpi-spark{ display:block; width:100%; height:22px; margin:2px 0 8px; }
 .kpi-foot{ font-family:var(--body); font-size:12px; color:var(--text-muted); }
 .kpi-foot.up{ color:var(--verde); font-weight:700; }
 .kpi-foot.warn{ color:var(--laranja); font-weight:700; }
@@ -313,6 +314,7 @@ main{
   border-bottom:3px solid var(--amarelo); padding-bottom:8px;
 }
 .chart-wrap-sm{ height:280px; position:relative; }
+.chart-wrap-sm canvas{ max-width:100%; }
 
 /* small multiples — um mini-gráfico por categoria, eixo próprio (evita categoria
    pequena ficar espremida ao lado de uma muito maior num eixo compartilhado) */
@@ -543,6 +545,31 @@ main{
     </div>
   </section>
 
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Ranking de Linhas <span class="mono-tag">TOP 20</span></h2>
+        <p class="panel-sub">Linhas de maior peso — spools e % de avanço (Liberado END)</p>
+      </div>
+    </div>
+    <div class="detail-scroll" style="max-height:420px">
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Linha</th>
+            <th class="num">Spools</th>
+            <th class="num">Peso (ton)</th>
+            <th class="num">Liberado END (ton)</th>
+            <th class="num">% Avanço</th>
+            <th>Índice</th>
+          </tr>
+        </thead>
+        <tbody id="linhasRankingBody"></tbody>
+      </table>
+    </div>
+  </section>
+
   <!-- ========= SEÇÃO JUNTAS / END / SOLDADORES ========= -->
 
   <section class="panel" id="juntasSection">
@@ -568,6 +595,34 @@ main{
         <p class="panel-sub">Percentual de reparos (1ª reprovação) por classe de diâmetro</p>
         <div class="chart-wrap-sm"><canvas id="reparosDiamChart"></canvas></div>
       </div>
+    </div>
+  </section>
+
+  <!-- Juntas por Sistema -->
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Juntas por Sistema <span class="mono-tag">POR UNIDADE</span></h2>
+        <p class="panel-sub">Soldadas e liberadas por END, comparando todos os sistemas cadastrados</p>
+      </div>
+    </div>
+    <div class="chart-wrap-sm"><canvas id="juntasPorSistemaChart"></canvas></div>
+    <div class="detail-scroll" style="max-height:360px; margin-top:16px">
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th>Sistema</th>
+            <th class="num">Total</th>
+            <th class="num">Soldadas</th>
+            <th class="num">% Soldada</th>
+            <th class="num">Liberadas END</th>
+            <th class="num">% Liberada</th>
+            <th class="num">Reparos (1ª/2ª)</th>
+            <th>Índice</th>
+          </tr>
+        </thead>
+        <tbody id="juntasPorSistemaBody"></tbody>
+      </table>
     </div>
   </section>
 
@@ -948,6 +1003,26 @@ function computeDashboardData(rows){
 
   const records = rows.map(r=>[r.iso, r.spool, r.linha, r.unid, +r.peso.toFixed(1), (r.sfab||'').slice(0,2), (r.smon||'').slice(0,2)]);
 
+  // ---- Ranking de Linhas: agregado por linha (peso, spools, % avanço), nunca exibido antes ----
+  const linhaMap = new Map();
+  rows.forEach(r=>{
+    if(!r.linha) return;
+    if(!linhaMap.has(r.linha)) linhaMap.set(r.linha, {total:0, lib:0, spools:0});
+    const s = linhaMap.get(r.linha);
+    s.total += r.peso;
+    s.spools += 1;
+    if(r.stageDates['Liberado END'] instanceof Date && !isNaN(r.stageDates['Liberado END'])) s.lib += r.peso;
+  });
+  const linhas_ranking = [...linhaMap.entries()]
+    .map(([linha, s]) => ({
+      linha, spools: s.spools,
+      peso_total:    +(s.total/1000).toFixed(3),
+      peso_liberado: +(s.lib/1000).toFixed(3),
+      pct_liberado:  s.total>0 ? +(s.lib/s.total*100).toFixed(1) : 0,
+    }))
+    .sort((a,b)=>b.peso_total-a.peso_total)
+    .slice(0,20);
+
   return {
     months, stages: STAGE_NAMES, overall, by_unidade,
     kpis: {
@@ -955,7 +1030,7 @@ function computeDashboardData(rows){
       sop_total_n: sopMap.size, sop_avg_pct, sop_completos,
       sth_total_n: sthMap.size, sth_iniciados_n, sth_completos_n, sth_pct_peso,
     },
-    unidades, status_fab, status_mon, records, sop_ranking,
+    unidades, status_fab, status_mon, records, sop_ranking, linhas_ranking,
     materiais, fabricado_por_material, by_sop, tempo_medio_fabricacao_material,
   };
 }
@@ -1218,13 +1293,32 @@ function computeJuntasData(rows){
     tempo_medio_soldagem_material[m] = { dias: s.n ? +(s.somaDias/s.n).toFixed(1) : 0, n: s.n };
   });
 
+  // ---- Juntas por Sistema (unid): comparativo entre sistemas, nunca exibido antes ----
+  const uMap = {};
+  rows.forEach((r,i)=>{
+    const u = r.unid; if(!u) return;
+    if(!uMap[u]) uMap[u] = { unid:u, total:0, soldadas:0, lib_end:0, reparos:0, reparos2:0 };
+    uMap[u].total++;
+    if(dtsold[i])   uMap[u].soldadas++;
+    if(dtlibend[i]) uMap[u].lib_end++;
+    if(dtsoldr1[i]) uMap[u].reparos++;
+    if(dtsoldr2[i]) uMap[u].reparos2++;
+  });
+  const por_unidade = Object.values(uMap)
+    .map(u => ({...u,
+      pct_soldadas: +(u.soldadas/Math.max(u.total,1)*100).toFixed(1),
+      pct_lib_end:  +(u.lib_end/Math.max(u.total,1)*100).toFixed(1),
+      pct_reparo:   +(u.reparos/Math.max(u.soldadas,1)*100).toFixed(1),
+    }))
+    .sort((a,b)=>b.total-a.total);
+
   return {
     kpis:{ total_juntas:total, soldadas:sold_n, lib_end:libend_n, com_vs:vsn, com_end_ensaio:endn,
            reparos1:rep1, reparos2:rep2, pct_soldadas:+(sold_n/total*100).toFixed(1),
            pct_lib_end:+(libend_n/total*100).toFixed(1), pct_reparo:+(rep1/Math.max(sold_n,1)*100).toFixed(1),
            end_rx_total:rxn, end_us_total:usn, end_rx_ok:rxok, end_us_ok:usok },
     soldadores, reparos_por_soldador, reparos2_por_soldador, reparos_por_diam, curve_months, curve_sold, curve_lib,
-    materiais, curve_sold_material, tempo_medio_soldagem_material,
+    materiais, curve_sold_material, tempo_medio_soldagem_material, por_unidade,
   };
 }
 
@@ -1406,6 +1500,33 @@ function escapeHtml(s){
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// ---------- Sparklines dos KPI cards (mini-tendência mensal, sem Chart.js) ----------
+function sparklinePath(values, w, h){
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max - min) || 1;
+  const step = values.length > 1 ? w / (values.length - 1) : 0;
+  return values.map((v,i) => {
+    const x = +(i*step).toFixed(2);
+    const y = +(h - ((v-min)/range)*h).toFixed(2);
+    return (i===0 ? 'M' : 'L') + x + ',' + y;
+  }).join(' ');
+}
+
+function sparkTitle(months, values, fmt){
+  if(!values.length) return '';
+  return (months[0]||'') + ' → ' + (months[months.length-1]||'') + ':  ' + fmt(values[0]) + ' → ' + fmt(values[values.length-1]);
+}
+
+function sparklineSvg(values, color, title){
+  if(!values || values.length < 2) return '';
+  const w = 100, h = 24;
+  const d = sparklinePath(values, w, h);
+  return `<svg class="kpi-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`
+    + `<title>${escapeHtml(title)}</title>`
+    + `<path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>`
+    + `</svg>`;
+}
+
 function getCurve(){
   return currentUnidade === '__ALL__' ? DATA.overall : DATA.by_unidade[currentUnidade];
 }
@@ -1444,13 +1565,22 @@ function renderKPIs(){
   }
   const pctNaoIniciado = spoolCount>0 ? (naoIniciado/spoolCount*100) : 0;
 
+  // ---- Sparklines: só onde existe série mensal real por trás (ver plano) ----
+  const months = DATA.months;
+  const pctOfTotal = series => curve.total>0 ? series.map(v=>+(v/curve.total*100).toFixed(1)) : series.map(()=>0);
+  const pctLiberadoEnd = pctOfTotal(curve.series['Liberado END']);
+  const pctSth = pctOfTotal(curve.series['Teste Hidrostático']);
+
   const cards = [
-    {label:'Peso total do escopo', value: fmtTon(total), unit:'ton', accent:'var(--azul)', foot: (currentUnidade==='__ALL__' ? 'Todos os sistemas' : currentUnidade)},
+    {label:'Peso total do escopo', value: fmtTon(total), unit:'ton', accent:'var(--azul)', foot: (currentUnidade==='__ALL__' ? 'Todos os sistemas' : currentUnidade),
+      spark: sparklineSvg(curve.series['Fabricado'], 'var(--azul)', sparkTitle(months, curve.series['Fabricado'], v=>fmtTon(v)+' ton fabricadas'))},
     {label:'Spools na base', value: fmtInt(spoolCount), unit:'un', accent:'var(--verde)', foot: currentUnidade==='__ALL__' ? (fmtInt(DATA.unidades.length) + ' sistemas') : 'Sistema ' + currentUnidade},
-    {label:'Avanço geral (Liberado END)', value: pctAvanco.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Liberado END'], foot: fmtTon(last['Liberado END']) + ' ton concluídas', footClass:'up'},
+    {label:'Avanço geral (Liberado END)', value: pctAvanco.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Liberado END'], foot: fmtTon(last['Liberado END']) + ' ton concluídas', footClass:'up',
+      spark: sparklineSvg(pctLiberadoEnd, STAGE_COLORS['Liberado END'], sparkTitle(months, pctLiberadoEnd, v=>v.toFixed(1).replace('.',',')+'%'))},
     {label:'Não iniciados (montagem)', value: pctNaoIniciado.toFixed(1).replace('.',','), unit:'%', accent:'var(--laranja)', foot: fmtInt(naoIniciado) + ' spools parados', footClass:'warn'},
     {label:'Avanço por SOP', value: DATA.kpis.sop_avg_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-escuro)', foot: fmtInt(DATA.kpis.sop_completos) + ' de ' + fmtInt(DATA.kpis.sop_total_n) + ' pacotes (todos os sistemas)'},
-    {label:'Avanço STH (peso testado)', value: DATA.kpis.sth_pct_peso.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Teste Hidrostático'], foot: fmtInt(DATA.kpis.sth_iniciados_n) + ' de ' + fmtInt(DATA.kpis.sth_total_n) + ' sistemas iniciados'},
+    {label:'Avanço STH (peso testado)', value: DATA.kpis.sth_pct_peso.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Teste Hidrostático'], foot: fmtInt(DATA.kpis.sth_iniciados_n) + ' de ' + fmtInt(DATA.kpis.sth_total_n) + ' sistemas iniciados',
+      spark: sparklineSvg(pctSth, STAGE_COLORS['Teste Hidrostático'], sparkTitle(months, pctSth, v=>v.toFixed(1).replace('.',',')+'%'))},
   ];
 
   const row = document.getElementById('kpiRow');
@@ -1458,6 +1588,7 @@ function renderKPIs(){
     <div class="kpi-card" style="--kpi-accent:${c.accent}">
       <p class="kpi-label">${c.label}</p>
       <p class="kpi-value">${c.value}<span class="unit">${c.unit}</span></p>
+      ${c.spark || ''}
       <p class="kpi-foot ${c.footClass||''}">${c.foot}</p>
     </div>
   `).join('');
@@ -1677,6 +1808,31 @@ document.getElementById('sopAvancoBody').addEventListener('click', e=>{
   if(!tr) return;
   renderSopCurve(tr.dataset.sop);
 });
+
+// ---------- Ranking de Linhas (top 20 por peso) ----------
+function renderLinhasRanking(){
+  const rows = DATA.linhas_ranking || [];
+  const body = document.getElementById('linhasRankingBody');
+  if(!rows.length){
+    body.innerHTML = `<tr><td colspan="7" style="color:var(--text-muted); text-align:center; padding:22px 12px; white-space:normal">
+      Ranking de linhas calculado a partir da próxima planilha de Spools carregada.
+    </td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map((r,i)=>{
+    const barW = Math.min(r.pct_liberado, 100);
+    const cls = r.pct_liberado>=70 ? 'qi-good' : r.pct_liberado>=30 ? 'qi-warn' : 'qi-bad';
+    return `<tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td style="font-weight:700">${escapeHtml(r.linha)}</td>
+      <td class="num">${fmtInt(r.spools)}</td>
+      <td class="num">${fmtTon(r.peso_total)}</td>
+      <td class="num">${fmtTon(r.peso_liberado)}</td>
+      <td class="num">${String(r.pct_liberado).replace('.',',')}%</td>
+      <td><div class="qi-bar-wrap"><div class="qi-bar ${cls}" style="width:${barW}%"></div></div></td>
+    </tr>`;
+  }).join('');
+}
 
 // ---------- Curva de Avanço por SOP (drill-down ao clicar numa linha da tabela) ----------
 let chartSopCurve = null;
@@ -1996,6 +2152,7 @@ function initFromData(newData){
   renderRundownChart();
   renderSummaryTable();
   renderSopAvanco();
+  renderLinhasRanking();
   renderVelocidadeFabricacao();
   renderVelocidadeFabricacaoMaterial();
   renderVelocidadeMontagem();
@@ -2020,10 +2177,17 @@ function fmtPct(v){ return String(v).replace('.',',') + '%'; }
 // ---- KPIs de Juntas ----
 function renderJuntasKPIs(){
   const k = JUNTAS.kpis;
+  const months = JUNTAS.curve_months || [];
+  const pctOfTotal = series => k.total_juntas>0 ? series.map(v=>+(v/k.total_juntas*100).toFixed(1)) : series.map(()=>0);
+  const pctSold = pctOfTotal(JUNTAS.curve_sold || []);
+  const pctLib  = pctOfTotal(JUNTAS.curve_lib || []);
+
   const cards = [
     { label:'Total de Juntas',   value: fmtInt(k.total_juntas), unit:'un',  accent:'var(--azul)',       foot: 'Raiz + enchimento cadastradas' },
-    { label:'Soldadas (Raiz)',    value: fmtPct(k.pct_soldadas), unit:'',    accent:STAGE_COLORS['Soldado'],      foot: fmtInt(k.soldadas) + ' juntas soldadas', footClass:'up' },
-    { label:'Liberadas END',      value: fmtPct(k.pct_lib_end),  unit:'',    accent:STAGE_COLORS['Liberado END'], foot: fmtInt(k.lib_end) + ' juntas liberadas', footClass:'up' },
+    { label:'Soldadas (Raiz)',    value: fmtPct(k.pct_soldadas), unit:'',    accent:STAGE_COLORS['Soldado'],      foot: fmtInt(k.soldadas) + ' juntas soldadas', footClass:'up',
+      spark: sparklineSvg(pctSold, STAGE_COLORS['Soldado'], sparkTitle(months, pctSold, v=>v.toFixed(1).replace('.',',')+'%')) },
+    { label:'Liberadas END',      value: fmtPct(k.pct_lib_end),  unit:'',    accent:STAGE_COLORS['Liberado END'], foot: fmtInt(k.lib_end) + ' juntas liberadas', footClass:'up',
+      spark: sparklineSvg(pctLib, STAGE_COLORS['Liberado END'], sparkTitle(months, pctLib, v=>v.toFixed(1).replace('.',',')+'%')) },
     { label:'Índice de Reparo',   value: fmtPct(k.pct_reparo),   unit:'',    accent:'var(--laranja)',    foot: fmtInt(k.reparos1) + ' reparos (1ª) · ' + fmtInt(k.reparos2) + ' (2ª)' },
     { label:'END — RX previstos', value: fmtInt(k.end_rx_total), unit:'jts', accent:'var(--azul-escuro)',foot: fmtInt(k.end_rx_ok) + ' realizados (100%)' },
     { label:'END — US previstos', value: fmtInt(k.end_us_total), unit:'jts', accent:'var(--azul-claro)', foot: fmtInt(k.end_us_ok) + ' realizados (100%)' },
@@ -2032,6 +2196,7 @@ function renderJuntasKPIs(){
     <div class="kpi-card" style="--kpi-accent:${c.accent}">
       <p class="kpi-label">${c.label}</p>
       <p class="kpi-value">${c.value}<span class="unit">${c.unit}</span></p>
+      ${c.spark || ''}
       <p class="kpi-foot ${c.footClass||''}">${c.foot}</p>
     </div>`).join('');
 }
@@ -2109,6 +2274,67 @@ function renderReparosDiam(){
       }
     }
   });
+}
+
+// ---------- Juntas por Sistema (unid) — comparativo entre sistemas ----------
+let chartJuntasPorSistema = null;
+function renderJuntasPorSistema(){
+  const canvas = document.getElementById('juntasPorSistemaChart');
+  if(!canvas) return;
+  const rows = JUNTAS.por_unidade || [];
+
+  if(!rows.length){
+    document.getElementById('juntasPorSistemaBody').innerHTML = `<tr><td colspan="8" style="color:var(--text-muted); text-align:center; padding:22px 12px; white-space:normal">
+      Comparativo por sistema calculado a partir da próxima planilha de Juntas carregada.
+    </td></tr>`;
+    if(chartJuntasPorSistema){ chartJuntasPorSistema.destroy(); chartJuntasPorSistema = null; }
+    return;
+  }
+
+  if(chartJuntasPorSistema) chartJuntasPorSistema.destroy();
+  chartJuntasPorSistema = new Chart(canvas.getContext('2d'), {
+    type:'bar',
+    data:{
+      labels: rows.map(r=>r.unid),
+      datasets:[
+        { label:'Soldadas', data: rows.map(r=>r.soldadas), backgroundColor:STAGE_COLORS['Soldado'], borderRadius:2 },
+        { label:'Liberadas END', data: rows.map(r=>r.lib_end), backgroundColor:STAGE_COLORS['Liberado END'], borderRadius:2 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}} },
+        y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}},
+            title:{display:true,text:'Juntas',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
+      },
+      plugins:{
+        legend:{ position:'bottom', labels:{color:'#1A1A1A',font:{family:'Trebuchet MS',size:11},usePointStyle:true,padding:12} },
+        tooltip:{
+          backgroundColor:'#fff', borderColor:'#008542', borderWidth:1,
+          titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
+          titleFont:{family:'Trebuchet MS',size:11,weight:'bold'}, bodyFont:{family:'Trebuchet MS',size:11},
+          callbacks:{ label: i => `${i.dataset.label}: ${fmtInt(i.parsed.y)}` }
+        }
+      }
+    }
+  });
+
+  document.getElementById('juntasPorSistemaBody').innerHTML = rows.map(r=>{
+    const barW = Math.min(r.pct_lib_end, 100);
+    const cls = r.pct_lib_end>=70 ? 'qi-good' : r.pct_lib_end>=30 ? 'qi-warn' : 'qi-bad';
+    return `<tr>
+      <td style="font-weight:700">${escapeHtml(r.unid)}</td>
+      <td class="num">${fmtInt(r.total)}</td>
+      <td class="num">${fmtInt(r.soldadas)}</td>
+      <td class="num">${String(r.pct_soldadas).replace('.',',')}%</td>
+      <td class="num">${fmtInt(r.lib_end)}</td>
+      <td class="num">${String(r.pct_lib_end).replace('.',',')}%</td>
+      <td class="num">${fmtInt(r.reparos)} / ${fmtInt(r.reparos2)}</td>
+      <td><div class="qi-bar-wrap"><div class="qi-bar ${cls}" style="width:${barW}%"></div></div></td>
+    </tr>`;
+  }).join('');
 }
 
 // ---------- Velocidade de Soldagem por Material (juntas soldadas/mês) ----------
@@ -2245,6 +2471,7 @@ function initJuntas(){
   renderJuntasKPIs();
   renderCurvaJuntas();
   renderReparosDiam();
+  renderJuntasPorSistema();
   renderVelocidadeSoldagemMaterial();
   renderTempoSoldMaterial();
   renderSoldadoresTable();
