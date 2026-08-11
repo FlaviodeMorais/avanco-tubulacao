@@ -12,12 +12,12 @@ atualização sem precisar do próprio token de escrita do GitHub, **só esta
 Function** guarda um token (variável de ambiente na Vercel, nunca no
 navegador de ninguém).
 
-**Sem chave/senha nesta rota.** Isso é intencional — o painel é de uso geral
-(ler, fazer upload local, baixar) e o botão "Publicar agora" fica visível e
-funcional pra qualquer um que abrir o link, sem pedir nada. Ou seja: quem
-tiver acesso ao link do painel consegue publicar. Se algum dia isso deixar
-de ser aceitável (ex.: o link circular fora do time), é preciso reintroduzir
-algum controle de acesso aqui.
+**Sem chave/senha nesta rota.** Isso é intencional — todo upload de planilha
+bem-sucedido chama esta rota automaticamente (ver "Como é usado" abaixo), sem
+pedir nada a quem está usando o painel. Ou seja: quem tiver acesso ao link do
+painel e fizer um upload consegue publicar. Se algum dia isso deixar de ser
+aceitável (ex.: o link circular fora do time), é preciso reintroduzir algum
+controle de acesso aqui.
 
 Custo: plano gratuito da Vercel cobre isso tranquilamente.
 
@@ -38,9 +38,18 @@ variável. Depois de salvar, vá em **Deployments** → deployment mais recente
 → **⋯** → **Redeploy** (variável de ambiente só vale a partir de um novo
 deploy).
 
-### 2. Usar
-No dashboard, clique em **"Publicar agora"** — publica na hora, sem pedir
-nada.
+### 2. Como é usado
+Não tem botão de "publicar" separado. No dashboard, ao fazer upload de um
+Mapa de Spools ou de Juntas (.xlsx), o painel recalcula os dados, salva no
+navegador de quem fez o upload (como sempre) **e chama esta rota
+automaticamente** — em ~1 min todos que abrirem o link veem a mesma
+atualização. Se a publicação falhar (ex.: token não configurado), o upload
+local não é desfeito — só aparece um aviso dizendo que a publicação não
+aconteceu dessa vez.
+
+O botão **"Baixar Dados (.zip)"** é outra coisa: baixa `data.json` +
+`juntas.json` compactados só pra guardar localmente (ex.: uma futura
+migração pra BI) — não chama esta rota, não publica nada.
 
 ## Detalhes
 
