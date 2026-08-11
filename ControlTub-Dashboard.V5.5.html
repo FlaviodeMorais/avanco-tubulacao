@@ -597,34 +597,6 @@ main{
     </div>
   </section>
 
-  <!-- Juntas por Sistema -->
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>Juntas por Sistema <span class="mono-tag">POR UNIDADE</span></h2>
-        <p class="panel-sub">Soldadas e liberadas por END, comparando todos os sistemas cadastrados</p>
-      </div>
-    </div>
-    <div class="chart-wrap-sm"><canvas id="juntasPorSistemaChart"></canvas></div>
-    <div class="detail-scroll" style="max-height:360px; margin-top:16px">
-      <table class="detail-table">
-        <thead>
-          <tr>
-            <th>Sistema</th>
-            <th class="num">Total</th>
-            <th class="num">Soldadas</th>
-            <th class="num">% Soldada</th>
-            <th class="num">Liberadas END</th>
-            <th class="num">% Liberada</th>
-            <th class="num">Reparos (1ª/2ª)</th>
-            <th>Índice</th>
-          </tr>
-        </thead>
-        <tbody id="juntasPorSistemaBody"></tbody>
-      </table>
-    </div>
-  </section>
-
   <div class="grid-2">
     <section class="panel">
       <div class="panel-head">
@@ -1292,32 +1264,13 @@ function computeJuntasData(rows){
     tempo_medio_soldagem_material[m] = { dias: s.n ? +(s.somaDias/s.n).toFixed(1) : 0, n: s.n };
   });
 
-  // ---- Juntas por Sistema (unid): comparativo entre sistemas, nunca exibido antes ----
-  const uMap = {};
-  rows.forEach((r,i)=>{
-    const u = r.unid; if(!u) return;
-    if(!uMap[u]) uMap[u] = { unid:u, total:0, soldadas:0, lib_end:0, reparos:0, reparos2:0 };
-    uMap[u].total++;
-    if(dtsold[i])   uMap[u].soldadas++;
-    if(dtlibend[i]) uMap[u].lib_end++;
-    if(dtsoldr1[i]) uMap[u].reparos++;
-    if(dtsoldr2[i]) uMap[u].reparos2++;
-  });
-  const por_unidade = Object.values(uMap)
-    .map(u => ({...u,
-      pct_soldadas: +(u.soldadas/Math.max(u.total,1)*100).toFixed(1),
-      pct_lib_end:  +(u.lib_end/Math.max(u.total,1)*100).toFixed(1),
-      pct_reparo:   +(u.reparos/Math.max(u.soldadas,1)*100).toFixed(1),
-    }))
-    .sort((a,b)=>b.total-a.total);
-
   return {
     kpis:{ total_juntas:total, soldadas:sold_n, lib_end:libend_n, com_vs:vsn, com_end_ensaio:endn,
            reparos1:rep1, reparos2:rep2, pct_soldadas:+(sold_n/total*100).toFixed(1),
            pct_lib_end:+(libend_n/total*100).toFixed(1), pct_reparo:+(rep1/Math.max(sold_n,1)*100).toFixed(1),
            end_rx_total:rxn, end_us_total:usn, end_rx_ok:rxok, end_us_ok:usok },
     soldadores, reparos_por_soldador, reparos2_por_soldador, reparos_por_diam, curve_months, curve_sold, curve_lib,
-    materiais, curve_sold_material, tempo_medio_soldagem_material, por_unidade,
+    materiais, curve_sold_material, tempo_medio_soldagem_material,
   };
 }
 
@@ -2230,67 +2183,6 @@ function renderReparosDiam(){
   });
 }
 
-// ---------- Juntas por Sistema (unid) — comparativo entre sistemas ----------
-let chartJuntasPorSistema = null;
-function renderJuntasPorSistema(){
-  const canvas = document.getElementById('juntasPorSistemaChart');
-  if(!canvas) return;
-  const rows = JUNTAS.por_unidade || [];
-
-  if(!rows.length){
-    document.getElementById('juntasPorSistemaBody').innerHTML = `<tr><td colspan="8" style="color:var(--text-muted); text-align:center; padding:22px 12px; white-space:normal">
-      Comparativo por sistema calculado a partir da próxima planilha de Juntas carregada.
-    </td></tr>`;
-    if(chartJuntasPorSistema){ chartJuntasPorSistema.destroy(); chartJuntasPorSistema = null; }
-    return;
-  }
-
-  if(chartJuntasPorSistema) chartJuntasPorSistema.destroy();
-  chartJuntasPorSistema = new Chart(canvas.getContext('2d'), {
-    type:'bar',
-    data:{
-      labels: rows.map(r=>r.unid),
-      datasets:[
-        { label:'Soldadas', data: rows.map(r=>r.soldadas), backgroundColor:STAGE_COLORS['Soldado'], borderRadius:2 },
-        { label:'Liberadas END', data: rows.map(r=>r.lib_end), backgroundColor:STAGE_COLORS['Liberado END'], borderRadius:2 },
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      interaction:{ mode:'index', intersect:false },
-      scales:{
-        x:{ grid:{display:false}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}} },
-        y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}},
-            title:{display:true,text:'Juntas',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
-      },
-      plugins:{
-        legend:{ position:'bottom', labels:{color:'#1A1A1A',font:{family:'Trebuchet MS',size:11},usePointStyle:true,padding:12} },
-        tooltip:{
-          backgroundColor:'#fff', borderColor:'#008542', borderWidth:1,
-          titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
-          titleFont:{family:'Trebuchet MS',size:11,weight:'bold'}, bodyFont:{family:'Trebuchet MS',size:11},
-          callbacks:{ label: i => `${i.dataset.label}: ${fmtInt(i.parsed.y)}` }
-        }
-      }
-    }
-  });
-
-  document.getElementById('juntasPorSistemaBody').innerHTML = rows.map(r=>{
-    const barW = Math.min(r.pct_lib_end, 100);
-    const cls = r.pct_lib_end>=70 ? 'qi-good' : r.pct_lib_end>=30 ? 'qi-warn' : 'qi-bad';
-    return `<tr>
-      <td style="font-weight:700">${escapeHtml(r.unid)}</td>
-      <td class="num">${fmtInt(r.total)}</td>
-      <td class="num">${fmtInt(r.soldadas)}</td>
-      <td class="num">${String(r.pct_soldadas).replace('.',',')}%</td>
-      <td class="num">${fmtInt(r.lib_end)}</td>
-      <td class="num">${String(r.pct_lib_end).replace('.',',')}%</td>
-      <td class="num">${fmtInt(r.reparos)} / ${fmtInt(r.reparos2)}</td>
-      <td><div class="qi-bar-wrap"><div class="qi-bar ${cls}" style="width:${barW}%"></div></div></td>
-    </tr>`;
-  }).join('');
-}
-
 // ---------- Velocidade de Soldagem por Material (juntas soldadas/mês) ----------
 let chartsVelSoldagemMaterial = [];
 function renderVelocidadeSoldagemMaterial(){
@@ -2425,7 +2317,6 @@ function initJuntas(){
   renderJuntasKPIs();
   renderCurvaJuntas();
   renderReparosDiam();
-  renderJuntasPorSistema();
   renderVelocidadeSoldagemMaterial();
   renderTempoSoldMaterial();
   renderSoldadoresTable();
