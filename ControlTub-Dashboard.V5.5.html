@@ -956,6 +956,7 @@ function computeDashboardData(rows){
       pct_liberado:  s.total>0 ? +(s.lib/s.total*100).toFixed(1) : 0,
     }))
     .sort((a,b)=>b.peso_total-a.peso_total);
+  const sop_prontos_ton = +sop_ranking.reduce((a,s)=>a+s.peso_liberado,0).toFixed(3);
 
   // ---- STH: sistemas com teste hidrostatico realizado ----
   const sthMap = new Map();
@@ -1000,7 +1001,7 @@ function computeDashboardData(rows){
     months, stages: STAGE_NAMES, overall, by_unidade,
     kpis: {
       total_ton: overall.total, total_spools, nao_iniciados, nao_iniciados_ton,
-      sop_total_n: sopMap.size, sop_avg_pct, sop_completos,
+      sop_total_n: sopMap.size, sop_avg_pct, sop_completos, sop_prontos_ton,
       sth_total_n: sthMap.size, sth_iniciados_n, sth_completos_n, sth_pct_peso,
     },
     unidades, status_fab, status_mon, records, sop_ranking, linhas_ranking,
@@ -1498,13 +1499,17 @@ function renderKPIs(){
   const naoIniciadoFoot = (naoIniciadoTon !== undefined && naoIniciadoTon !== null)
     ? fmtTon(naoIniciadoTon) + ' ton a montar'
     : fmtInt(naoIniciado) + ' spools parados';
+  // fallback pra data.json publicado antes desse campo existir — some no próximo upload
+  const sopFoot = (DATA.kpis.sop_prontos_ton !== undefined && DATA.kpis.sop_prontos_ton !== null)
+    ? fmtTon(DATA.kpis.sop_prontos_ton) + ' ton prontos'
+    : fmtInt(DATA.kpis.sop_completos) + ' de ' + fmtInt(DATA.kpis.sop_total_n) + ' pacotes (todos os sistemas)';
 
   const cards = [
     {label:'Peso total do escopo', value: fmtTon(total), unit:'ton', accent:'var(--azul)', foot: (currentUnidade==='__ALL__' ? 'Todos os sistemas' : currentUnidade)},
     {label:'Spools na base', value: fmtInt(spoolCount), unit:'un', accent:'var(--verde)', foot: currentUnidade==='__ALL__' ? (fmtInt(DATA.unidades.length) + ' sistemas') : 'Sistema ' + currentUnidade},
     {label:'Avanço geral (Liberado END)', value: pctAvanco.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Liberado END'], foot: fmtTon(last['Liberado END']) + ' ton concluídas', footClass:'up'},
     {label:'Não iniciados (montagem)', value: pctNaoIniciado.toFixed(1).replace('.',','), unit:'%', accent:'var(--laranja)', foot: naoIniciadoFoot, footClass:'warn'},
-    {label:'Avanço por SOP', value: DATA.kpis.sop_avg_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-escuro)', foot: fmtInt(DATA.kpis.sop_completos) + ' de ' + fmtInt(DATA.kpis.sop_total_n) + ' pacotes (todos os sistemas)'},
+    {label:'Avanço por SOP', value: DATA.kpis.sop_avg_pct.toFixed(1).replace('.',','), unit:'%', accent:'var(--azul-escuro)', foot: sopFoot},
     {label:'Avanço STH (peso testado)', value: DATA.kpis.sth_pct_peso.toFixed(1).replace('.',','), unit:'%', accent:STAGE_COLORS['Teste Hidrostático'], foot: fmtInt(DATA.kpis.sth_iniciados_n) + ' de ' + fmtInt(DATA.kpis.sth_total_n) + ' sistemas iniciados'},
   ];
 
