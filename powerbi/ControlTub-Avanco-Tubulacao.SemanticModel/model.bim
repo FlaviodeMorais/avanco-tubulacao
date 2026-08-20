@@ -1,0 +1,2427 @@
+{
+  "name": "ControlTub - Avanço de Tubulação",
+  "compatibilityLevel": 1550,
+  "model": {
+    "culture": "pt-BR",
+    "dataAccessOptions": {
+      "legacyRedirects": true,
+      "returnErrorValuesAsNull": true
+    },
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "sourceQueryCulture": "pt-BR",
+    "tables": [
+      {
+        "name": "Meses",
+        "columns": [
+          {
+            "name": "Mes",
+            "dataType": "string",
+            "sourceColumn": "Mes",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "sortByColumn": "Ordem"
+          },
+          {
+            "name": "Ordem",
+            "dataType": "int64",
+            "sourceColumn": "Ordem",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0",
+            "isHidden": true
+          },
+          {
+            "name": "FimDoMes",
+            "dataType": "dateTime",
+            "sourceColumn": "FimDoMes",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "General Date"
+          },
+          {
+            "name": "Ano",
+            "dataType": "int64",
+            "sourceColumn": "Ano",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "0"
+          },
+          {
+            "name": "MesNum",
+            "dataType": "int64",
+            "sourceColumn": "MesNum",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0",
+            "isHidden": true
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Meses",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    Abreviacoes = {\"Jan\", \"Fev\", \"Mar\", \"Abr\", \"Mai\", \"Jun\", \"Jul\", \"Ago\", \"Set\", \"Out\", \"Nov\", \"Dez\"},",
+                "    Tabela = Table.FromList(Dados[months], Splitter.SplitByNothing(), {\"Mes\"}, null, ExtraValues.Error),",
+                "    ComOrdem = Table.AddIndexColumn(Tabela, \"Ordem\", 1, 1, Int64.Type),",
+                "    ComFimDoMes = Table.AddColumn(ComOrdem, \"FimDoMes\", each",
+                "        let",
+                "            Partes = Text.Split([Mes], \"/\"),",
+                "            NumeroMes = List.PositionOf(Abreviacoes, Partes{0}) + 1,",
+                "            Ano = 2000 + Number.FromText(Partes{1})",
+                "        in",
+                "            Date.EndOfMonth(#date(Ano, NumeroMes, 1)), type date),",
+                "    ComAno = Table.AddColumn(ComFimDoMes, \"Ano\", each Date.Year([FimDoMes]), Int64.Type),",
+                "    ComMesNum = Table.AddColumn(ComAno, \"MesNum\", each Date.Month([FimDoMes]), Int64.Type),",
+                "    Tipos = Table.TransformColumnTypes(ComMesNum, {{\"Mes\", type text}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Etapas",
+        "columns": [
+          {
+            "name": "Etapa",
+            "dataType": "string",
+            "sourceColumn": "Etapa",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "sortByColumn": "OrdemEtapa"
+          },
+          {
+            "name": "OrdemEtapa",
+            "dataType": "int64",
+            "sourceColumn": "OrdemEtapa",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0",
+            "isHidden": true
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Etapas",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    Tabela = Table.FromList(Dados[stages], Splitter.SplitByNothing(), {\"Etapa\"}, null, ExtraValues.Error),",
+                "    ComOrdem = Table.AddIndexColumn(Tabela, \"OrdemEtapa\", 1, 1, Int64.Type),",
+                "    Tipos = Table.TransformColumnTypes(ComOrdem, {{\"Etapa\", type text}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Unidades",
+        "columns": [
+          {
+            "name": "Unidade",
+            "dataType": "string",
+            "sourceColumn": "Unidade",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Unidades",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    Tabela = Table.FromList(Dados[unidades], Splitter.SplitByNothing(), {\"Unidade\"}, null, ExtraValues.Error),",
+                "    Tipos = Table.TransformColumnTypes(Tabela, {{\"Unidade\", type text}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Materiais",
+        "columns": [
+          {
+            "name": "Material",
+            "dataType": "string",
+            "sourceColumn": "Material",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Materiais",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    Tabela = Table.FromList(Dados[materiais], Splitter.SplitByNothing(), {\"Material\"}, null, ExtraValues.Error),",
+                "    Tipos = Table.TransformColumnTypes(Tabela, {{\"Material\", type text}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Avanco_Unidade",
+        "columns": [
+          {
+            "name": "Unidade",
+            "dataType": "string",
+            "sourceColumn": "Unidade",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Etapa",
+            "dataType": "string",
+            "sourceColumn": "Etapa",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Ordem",
+            "dataType": "int64",
+            "sourceColumn": "Ordem",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0",
+            "isHidden": true
+          },
+          {
+            "name": "Ton_Acumulado",
+            "dataType": "double",
+            "sourceColumn": "Ton_Acumulado",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Avanco_Unidade",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    PorUnidade = Dados[by_unidade],",
+                "    Unidades = Record.FieldNames(PorUnidade),",
+                "    Linhas = List.Combine(List.Transform(Unidades, (u) =>",
+                "        let",
+                "            Series = Record.Field(PorUnidade, u)[series],",
+                "            Etapas = Record.FieldNames(Series)",
+                "        in",
+                "            List.Combine(List.Transform(Etapas, (e) =>",
+                "                let Valores = Record.Field(Series, e) in",
+                "                List.Transform(List.Positions(Valores), (i) => {u, e, i + 1, Valores{i}})",
+                "            ))",
+                "    )),",
+                "    Tabela = Table.FromRows(Linhas, {\"Unidade\", \"Etapa\", \"Ordem\", \"Ton_Acumulado\"}),",
+                "    Tipos = Table.TransformColumnTypes(Tabela, {",
+                "        {\"Unidade\", type text}, {\"Etapa\", type text},",
+                "        {\"Ordem\", Int64.Type}, {\"Ton_Acumulado\", type number}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Avanco_SOP",
+        "columns": [
+          {
+            "name": "SOP",
+            "dataType": "string",
+            "sourceColumn": "SOP",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Etapa",
+            "dataType": "string",
+            "sourceColumn": "Etapa",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Ordem",
+            "dataType": "int64",
+            "sourceColumn": "Ordem",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0",
+            "isHidden": true
+          },
+          {
+            "name": "Ton_Acumulado",
+            "dataType": "double",
+            "sourceColumn": "Ton_Acumulado",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Avanco_SOP",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    PorSOP = Dados[by_sop],",
+                "    Pacotes = Record.FieldNames(PorSOP),",
+                "    Linhas = List.Combine(List.Transform(Pacotes, (s) =>",
+                "        let",
+                "            Series = Record.Field(PorSOP, s)[series],",
+                "            Etapas = Record.FieldNames(Series)",
+                "        in",
+                "            List.Combine(List.Transform(Etapas, (e) =>",
+                "                let Valores = Record.Field(Series, e) in",
+                "                List.Transform(List.Positions(Valores), (i) => {s, e, i + 1, Valores{i}})",
+                "            ))",
+                "    )),",
+                "    Tabela = Table.FromRows(Linhas, {\"SOP\", \"Etapa\", \"Ordem\", \"Ton_Acumulado\"}),",
+                "    Tipos = Table.TransformColumnTypes(Tabela, {",
+                "        {\"SOP\", type text}, {\"Etapa\", type text},",
+                "        {\"Ordem\", Int64.Type}, {\"Ton_Acumulado\", type number}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Spools",
+        "columns": [
+          {
+            "name": "ISO",
+            "dataType": "string",
+            "sourceColumn": "ISO",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Spool",
+            "dataType": "string",
+            "sourceColumn": "Spool",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Linha",
+            "dataType": "string",
+            "sourceColumn": "Linha",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Unidade",
+            "dataType": "string",
+            "sourceColumn": "Unidade",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Peso_kg",
+            "dataType": "double",
+            "sourceColumn": "Peso_kg",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "CodStatusFab",
+            "dataType": "string",
+            "sourceColumn": "CodStatusFab",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "isHidden": true
+          },
+          {
+            "name": "CodStatusMon",
+            "dataType": "string",
+            "sourceColumn": "CodStatusMon",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "isHidden": true
+          },
+          {
+            "name": "Status Fabricacao",
+            "dataType": "string",
+            "sourceColumn": "Status Fabricacao",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Status Montagem",
+            "dataType": "string",
+            "sourceColumn": "Status Montagem",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Peso_ton",
+            "dataType": "double",
+            "sourceColumn": "Peso_ton",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Spools",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    MapaFab = Dados[status_fab],",
+                "    MapaMon = Dados[status_mon],",
+                "    Tabela = Table.FromRows(Dados[records], {",
+                "        \"ISO\", \"Spool\", \"Linha\", \"Unidade\", \"Peso_kg\", \"CodStatusFab\", \"CodStatusMon\"}),",
+                "    ComStatusFab = Table.AddColumn(Tabela, \"Status Fabricacao\", each",
+                "        let Achados = List.Select(MapaFab, (s) => Text.StartsWith(s, [CodStatusFab]))",
+                "        in if List.Count(Achados) > 0 then Achados{0} else [CodStatusFab], type text),",
+                "    ComStatusMon = Table.AddColumn(ComStatusFab, \"Status Montagem\", each",
+                "        let Achados = List.Select(MapaMon, (s) => Text.StartsWith(s, [CodStatusMon]))",
+                "        in if List.Count(Achados) > 0 then Achados{0} else [CodStatusMon], type text),",
+                "    ComTon = Table.AddColumn(ComStatusMon, \"Peso_ton\", each [Peso_kg] / 1000, type number),",
+                "    Tipos = Table.TransformColumnTypes(ComTon, {",
+                "        {\"ISO\", type text}, {\"Spool\", type text}, {\"Linha\", type text}, {\"Unidade\", type text},",
+                "        {\"Peso_kg\", type number}, {\"CodStatusFab\", type text}, {\"CodStatusMon\", type text}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Ranking_SOP",
+        "columns": [
+          {
+            "name": "SOP",
+            "dataType": "string",
+            "sourceColumn": "SOP",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Linhas",
+            "dataType": "int64",
+            "sourceColumn": "Linhas",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "STHs",
+            "dataType": "int64",
+            "sourceColumn": "STHs",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Spools",
+            "dataType": "int64",
+            "sourceColumn": "Spools",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Peso Total (ton)",
+            "dataType": "double",
+            "sourceColumn": "Peso Total (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "Peso Fabricado (ton)",
+            "dataType": "double",
+            "sourceColumn": "Peso Fabricado (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "Peso Liberado (ton)",
+            "dataType": "double",
+            "sourceColumn": "Peso Liberado (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "% Fabricado",
+            "dataType": "double",
+            "sourceColumn": "% Fabricado",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "% Liberado",
+            "dataType": "double",
+            "sourceColumn": "% Liberado",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Ranking_SOP",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    Tabela = Table.FromRecords(Dados[sop_ranking]),",
+                "    Renomeada = Table.RenameColumns(Tabela, {",
+                "        {\"sop\", \"SOP\"}, {\"linhas\", \"Linhas\"}, {\"sths\", \"STHs\"}, {\"spools\", \"Spools\"},",
+                "        {\"peso_total\", \"Peso Total (ton)\"}, {\"peso_fabricado\", \"Peso Fabricado (ton)\"},",
+                "        {\"peso_liberado\", \"Peso Liberado (ton)\"},",
+                "        {\"pct_fabricado\", \"% Fabricado\"}, {\"pct_liberado\", \"% Liberado\"}}),",
+                "    Tipos = Table.TransformColumnTypes(Renomeada, {",
+                "        {\"SOP\", type text}, {\"Linhas\", Int64.Type}, {\"STHs\", Int64.Type}, {\"Spools\", Int64.Type},",
+                "        {\"Peso Total (ton)\", type number}, {\"Peso Fabricado (ton)\", type number},",
+                "        {\"Peso Liberado (ton)\", type number},",
+                "        {\"% Fabricado\", type number}, {\"% Liberado\", type number}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Ranking_Linhas",
+        "columns": [
+          {
+            "name": "Linha",
+            "dataType": "string",
+            "sourceColumn": "Linha",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Spools",
+            "dataType": "int64",
+            "sourceColumn": "Spools",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Peso Total (ton)",
+            "dataType": "double",
+            "sourceColumn": "Peso Total (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "Peso Liberado (ton)",
+            "dataType": "double",
+            "sourceColumn": "Peso Liberado (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "% Liberado",
+            "dataType": "double",
+            "sourceColumn": "% Liberado",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Ranking_Linhas",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    Tabela = Table.FromRecords(Dados[linhas_ranking]),",
+                "    Renomeada = Table.RenameColumns(Tabela, {",
+                "        {\"linha\", \"Linha\"}, {\"spools\", \"Spools\"},",
+                "        {\"peso_total\", \"Peso Total (ton)\"}, {\"peso_liberado\", \"Peso Liberado (ton)\"},",
+                "        {\"pct_liberado\", \"% Liberado\"}}),",
+                "    Tipos = Table.TransformColumnTypes(Renomeada, {",
+                "        {\"Linha\", type text}, {\"Spools\", Int64.Type},",
+                "        {\"Peso Total (ton)\", type number}, {\"Peso Liberado (ton)\", type number},",
+                "        {\"% Liberado\", type number}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Material_Fabricado",
+        "columns": [
+          {
+            "name": "Material",
+            "dataType": "string",
+            "sourceColumn": "Material",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Ordem",
+            "dataType": "int64",
+            "sourceColumn": "Ordem",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0",
+            "isHidden": true
+          },
+          {
+            "name": "Ton_Fabricado_Acumulado",
+            "dataType": "double",
+            "sourceColumn": "Ton_Fabricado_Acumulado",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Material_Fabricado",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    PorMaterial = Dados[fabricado_por_material],",
+                "    Materiais = Record.FieldNames(PorMaterial),",
+                "    Linhas = List.Combine(List.Transform(Materiais, (m) =>",
+                "        let Valores = Record.Field(PorMaterial, m) in",
+                "        List.Transform(List.Positions(Valores), (i) => {m, i + 1, Valores{i}}))),",
+                "    Tabela = Table.FromRows(Linhas, {\"Material\", \"Ordem\", \"Ton_Fabricado_Acumulado\"}),",
+                "    Tipos = Table.TransformColumnTypes(Tabela, {",
+                "        {\"Material\", type text}, {\"Ordem\", Int64.Type}, {\"Ton_Fabricado_Acumulado\", type number}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Tempo_Medio",
+        "columns": [
+          {
+            "name": "Material",
+            "dataType": "string",
+            "sourceColumn": "Material",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Tipo",
+            "dataType": "string",
+            "sourceColumn": "Tipo",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Dias",
+            "dataType": "double",
+            "sourceColumn": "Dias",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "Amostra",
+            "dataType": "int64",
+            "sourceColumn": "Amostra",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Tempo_Medio",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    Juntas = fnCarregar(\"juntas.json\"),",
+                "    Fabricacao = let R = Dados[tempo_medio_fabricacao_material] in",
+                "        List.Transform(Record.FieldNames(R), (m) =>",
+                "            {m, \"Fabricacao\", Record.Field(R, m)[dias], Record.Field(R, m)[n]}),",
+                "    Soldagem = let R = Juntas[tempo_medio_soldagem_material] in",
+                "        List.Transform(Record.FieldNames(R), (m) =>",
+                "            {m, \"Soldagem\", Record.Field(R, m)[dias], Record.Field(R, m)[n]}),",
+                "    Tabela = Table.FromRows(Fabricacao & Soldagem, {\"Material\", \"Tipo\", \"Dias\", \"Amostra\"}),",
+                "    Tipos = Table.TransformColumnTypes(Tabela, {",
+                "        {\"Material\", type text}, {\"Tipo\", type text},",
+                "        {\"Dias\", type number}, {\"Amostra\", Int64.Type}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "KPIs",
+        "columns": [
+          {
+            "name": "Peso Total (ton)",
+            "dataType": "double",
+            "sourceColumn": "Peso Total (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "Spools (qtd)",
+            "dataType": "double",
+            "sourceColumn": "Spools (qtd)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Spools Nao Iniciados",
+            "dataType": "double",
+            "sourceColumn": "Spools Nao Iniciados",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Nao Iniciados (ton)",
+            "dataType": "double",
+            "sourceColumn": "Nao Iniciados (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "Pacotes SOP",
+            "dataType": "double",
+            "sourceColumn": "Pacotes SOP",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "% Medio Avanco SOP",
+            "dataType": "double",
+            "sourceColumn": "% Medio Avanco SOP",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "SOPs Concluidos",
+            "dataType": "double",
+            "sourceColumn": "SOPs Concluidos",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "SOP Liberado (ton)",
+            "dataType": "double",
+            "sourceColumn": "SOP Liberado (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "Sistemas STH",
+            "dataType": "double",
+            "sourceColumn": "Sistemas STH",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "STH Iniciados",
+            "dataType": "double",
+            "sourceColumn": "STH Iniciados",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "STH Concluidos",
+            "dataType": "double",
+            "sourceColumn": "STH Concluidos",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "% Peso com STH",
+            "dataType": "double",
+            "sourceColumn": "% Peso com STH",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "Pintura Prevista (m2)",
+            "dataType": "double",
+            "sourceColumn": "Pintura Prevista (m2)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "Pintura Realizada (m2)",
+            "dataType": "double",
+            "sourceColumn": "Pintura Realizada (m2)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "% Pintura",
+            "dataType": "double",
+            "sourceColumn": "% Pintura",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "Isolamento Previsto (m2)",
+            "dataType": "double",
+            "sourceColumn": "Isolamento Previsto (m2)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "Isolamento Realizado (m2)",
+            "dataType": "double",
+            "sourceColumn": "Isolamento Realizado (m2)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "% Isolamento",
+            "dataType": "double",
+            "sourceColumn": "% Isolamento",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "AC ate 2pol Previsto (ton)",
+            "dataType": "double",
+            "sourceColumn": "AC ate 2pol Previsto (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "AC ate 2pol Realizado (ton)",
+            "dataType": "double",
+            "sourceColumn": "AC ate 2pol Realizado (ton)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.000"
+          },
+          {
+            "name": "% AC ate 2pol",
+            "dataType": "double",
+            "sourceColumn": "% AC ate 2pol",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "KPIs",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Dados = fnCarregar(\"data.json\"),",
+                "    Tabela = Table.FromRecords({Dados[kpis]}),",
+                "    Renomeada = Table.RenameColumns(Tabela, {",
+                "        {\"total_ton\", \"Peso Total (ton)\"}, {\"total_spools\", \"Spools (qtd)\"},",
+                "        {\"nao_iniciados\", \"Spools Nao Iniciados\"}, {\"nao_iniciados_ton\", \"Nao Iniciados (ton)\"},",
+                "        {\"sop_total_n\", \"Pacotes SOP\"}, {\"sop_avg_pct\", \"% Medio Avanco SOP\"},",
+                "        {\"sop_completos\", \"SOPs Concluidos\"}, {\"sop_prontos_ton\", \"SOP Liberado (ton)\"},",
+                "        {\"sth_total_n\", \"Sistemas STH\"}, {\"sth_iniciados_n\", \"STH Iniciados\"},",
+                "        {\"sth_completos_n\", \"STH Concluidos\"}, {\"sth_pct_peso\", \"% Peso com STH\"},",
+                "        {\"pintura_area_previsto\", \"Pintura Prevista (m2)\"},",
+                "        {\"pintura_area_realizado\", \"Pintura Realizada (m2)\"}, {\"pintura_pct\", \"% Pintura\"},",
+                "        {\"isolamento_area_previsto\", \"Isolamento Previsto (m2)\"},",
+                "        {\"isolamento_area_realizado\", \"Isolamento Realizado (m2)\"},",
+                "        {\"isolamento_pct\", \"% Isolamento\"},",
+                "        {\"spoolsAc2_previsto_ton\", \"AC ate 2pol Previsto (ton)\"},",
+                "        {\"spoolsAc2_realizado_ton\", \"AC ate 2pol Realizado (ton)\"},",
+                "        {\"spoolsAc2_pct\", \"% AC ate 2pol\"}}, MissingField.Ignore),",
+                "    Tipos = Table.TransformColumnTypes(Renomeada,",
+                "        List.Transform(Table.ColumnNames(Renomeada), (c) => {c, type number}))",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Juntas_KPIs",
+        "columns": [
+          {
+            "name": "Juntas (total)",
+            "dataType": "double",
+            "sourceColumn": "Juntas (total)",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Soldadas",
+            "dataType": "double",
+            "sourceColumn": "Soldadas",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Liberadas END",
+            "dataType": "double",
+            "sourceColumn": "Liberadas END",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Com Visual de Solda",
+            "dataType": "double",
+            "sourceColumn": "Com Visual de Solda",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Com Ensaio END",
+            "dataType": "double",
+            "sourceColumn": "Com Ensaio END",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Reparos 1a",
+            "dataType": "double",
+            "sourceColumn": "Reparos 1a",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Reparos 2a",
+            "dataType": "double",
+            "sourceColumn": "Reparos 2a",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "% Soldadas",
+            "dataType": "double",
+            "sourceColumn": "% Soldadas",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "% Liberadas END",
+            "dataType": "double",
+            "sourceColumn": "% Liberadas END",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "% Reparo",
+            "dataType": "double",
+            "sourceColumn": "% Reparo",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "END RX Previsto",
+            "dataType": "double",
+            "sourceColumn": "END RX Previsto",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "END US Previsto",
+            "dataType": "double",
+            "sourceColumn": "END US Previsto",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "END RX Realizado",
+            "dataType": "double",
+            "sourceColumn": "END RX Realizado",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "END US Realizado",
+            "dataType": "double",
+            "sourceColumn": "END US Realizado",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Juntas_KPIs",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Juntas = fnCarregar(\"juntas.json\"),",
+                "    Tabela = Table.FromRecords({Juntas[kpis]}),",
+                "    Renomeada = Table.RenameColumns(Tabela, {",
+                "        {\"total_juntas\", \"Juntas (total)\"}, {\"soldadas\", \"Soldadas\"},",
+                "        {\"lib_end\", \"Liberadas END\"}, {\"com_vs\", \"Com Visual de Solda\"},",
+                "        {\"com_end_ensaio\", \"Com Ensaio END\"},",
+                "        {\"reparos1\", \"Reparos 1a\"}, {\"reparos2\", \"Reparos 2a\"},",
+                "        {\"pct_soldadas\", \"% Soldadas\"}, {\"pct_lib_end\", \"% Liberadas END\"},",
+                "        {\"pct_reparo\", \"% Reparo\"},",
+                "        {\"end_rx_total\", \"END RX Previsto\"}, {\"end_us_total\", \"END US Previsto\"},",
+                "        {\"end_rx_ok\", \"END RX Realizado\"}, {\"end_us_ok\", \"END US Realizado\"}},",
+                "        MissingField.Ignore),",
+                "    Tipos = Table.TransformColumnTypes(Renomeada,",
+                "        List.Transform(Table.ColumnNames(Renomeada), (c) => {c, type number}))",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Soldadores",
+        "columns": [
+          {
+            "name": "Soldador",
+            "dataType": "string",
+            "sourceColumn": "Soldador",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Juntas",
+            "dataType": "int64",
+            "sourceColumn": "Juntas",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Soldadas",
+            "dataType": "int64",
+            "sourceColumn": "Soldadas",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Reparos",
+            "dataType": "int64",
+            "sourceColumn": "Reparos",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Reparos 2a",
+            "dataType": "int64",
+            "sourceColumn": "Reparos 2a",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Liberadas END",
+            "dataType": "int64",
+            "sourceColumn": "Liberadas END",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "% Reparo",
+            "dataType": "double",
+            "sourceColumn": "% Reparo",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          },
+          {
+            "name": "% Conclusao",
+            "dataType": "double",
+            "sourceColumn": "% Conclusao",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Soldadores",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Juntas = fnCarregar(\"juntas.json\"),",
+                "    Tabela = Table.FromRecords(Juntas[soldadores]),",
+                "    Renomeada = Table.RenameColumns(Tabela, {",
+                "        {\"soldador\", \"Soldador\"}, {\"total\", \"Juntas\"}, {\"soldadas\", \"Soldadas\"},",
+                "        {\"reparos\", \"Reparos\"}, {\"reparos2\", \"Reparos 2a\"}, {\"lib_end\", \"Liberadas END\"},",
+                "        {\"pct_reparo\", \"% Reparo\"}, {\"pct_conclusao\", \"% Conclusao\"}}),",
+                "    Tipos = Table.TransformColumnTypes(Renomeada, {",
+                "        {\"Soldador\", type text}, {\"Juntas\", Int64.Type}, {\"Soldadas\", Int64.Type},",
+                "        {\"Reparos\", Int64.Type}, {\"Reparos 2a\", Int64.Type}, {\"Liberadas END\", Int64.Type},",
+                "        {\"% Reparo\", type number}, {\"% Conclusao\", type number}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Reparos_Diametro",
+        "columns": [
+          {
+            "name": "Diametro",
+            "dataType": "string",
+            "sourceColumn": "Diametro",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Juntas",
+            "dataType": "int64",
+            "sourceColumn": "Juntas",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "Reparos",
+            "dataType": "int64",
+            "sourceColumn": "Reparos",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          },
+          {
+            "name": "% Reparo",
+            "dataType": "double",
+            "sourceColumn": "% Reparo",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0.0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Reparos_Diametro",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Juntas = fnCarregar(\"juntas.json\"),",
+                "    Tabela = Table.FromRecords(Juntas[reparos_por_diam]),",
+                "    Renomeada = Table.RenameColumns(Tabela, {",
+                "        {\"pol\", \"Diametro\"}, {\"total\", \"Juntas\"}, {\"reparos\", \"Reparos\"}, {\"pct\", \"% Reparo\"}}),",
+                "    Tipos = Table.TransformColumnTypes(Renomeada, {",
+                "        {\"Diametro\", type text}, {\"Juntas\", Int64.Type},",
+                "        {\"Reparos\", Int64.Type}, {\"% Reparo\", type number}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Juntas_Curva",
+        "columns": [
+          {
+            "name": "Mes",
+            "dataType": "string",
+            "sourceColumn": "Mes",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Serie",
+            "dataType": "string",
+            "sourceColumn": "Serie",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Juntas",
+            "dataType": "int64",
+            "sourceColumn": "Juntas",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Juntas_Curva",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Juntas = fnCarregar(\"juntas.json\"),",
+                "    Meses = Juntas[curve_months],",
+                "    Soldadas = List.Transform(List.Positions(Meses), (i) => {Meses{i}, \"Soldadas\", Juntas[curve_sold]{i}}),",
+                "    Liberadas = List.Transform(List.Positions(Meses), (i) => {Meses{i}, \"Liberadas END\", Juntas[curve_lib]{i}}),",
+                "    Tabela = Table.FromRows(Soldadas & Liberadas, {\"Mes\", \"Serie\", \"Juntas\"}),",
+                "    Tipos = Table.TransformColumnTypes(Tabela, {",
+                "        {\"Mes\", type text}, {\"Serie\", type text}, {\"Juntas\", Int64.Type}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Juntas_Material",
+        "columns": [
+          {
+            "name": "Mes",
+            "dataType": "string",
+            "sourceColumn": "Mes",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Material",
+            "dataType": "string",
+            "sourceColumn": "Material",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Juntas Soldadas",
+            "dataType": "int64",
+            "sourceColumn": "Juntas Soldadas",
+            "summarizeBy": "sum",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "formatString": "#,0"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Juntas_Material",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Juntas = fnCarregar(\"juntas.json\"),",
+                "    Meses = Juntas[curve_months],",
+                "    PorMaterial = Juntas[curve_sold_material],",
+                "    Materiais = Record.FieldNames(PorMaterial),",
+                "    Linhas = List.Combine(List.Transform(Materiais, (m) =>",
+                "        let Valores = Record.Field(PorMaterial, m) in",
+                "        List.Transform(List.Positions(Valores), (i) => {Meses{i}, m, Valores{i}}))),",
+                "    Tabela = Table.FromRows(Linhas, {\"Mes\", \"Material\", \"Juntas Soldadas\"}),",
+                "    Tipos = Table.TransformColumnTypes(Tabela, {",
+                "        {\"Mes\", type text}, {\"Material\", type text}, {\"Juntas Soldadas\", Int64.Type}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ]
+      },
+      {
+        "name": "Medidas",
+        "columns": [
+          {
+            "name": "Coluna",
+            "dataType": "int64",
+            "sourceColumn": "Coluna",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ],
+            "isHidden": true
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Medidas",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Tabela = #table(type table [Coluna = Int64.Type], {{1}})",
+                "in",
+                "    Tabela"
+              ]
+            }
+          }
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Table"
+          }
+        ],
+        "measures": [
+          {
+            "name": "Peso Total (ton)",
+            "expression": [
+              "DIVIDE(SUM(Spools[Peso_kg]), 1000)"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "1 Escopo"
+          },
+          {
+            "name": "Qtd Spools",
+            "expression": [
+              "COUNTROWS(Spools)"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "1 Escopo"
+          },
+          {
+            "name": "Qtd Nao Iniciados",
+            "expression": [
+              "CALCULATE(COUNTROWS(Spools), Spools[CodStatusMon] = \"36\")"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "1 Escopo"
+          },
+          {
+            "name": "Peso Nao Iniciado (ton)",
+            "expression": [
+              "DIVIDE(CALCULATE(SUM(Spools[Peso_kg]), Spools[CodStatusMon] = \"36\"), 1000)"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "1 Escopo"
+          },
+          {
+            "name": "% Nao Iniciado",
+            "expression": [
+              "DIVIDE([Peso Nao Iniciado (ton)], [Peso Total (ton)])"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "1 Escopo"
+          },
+          {
+            "name": "Avanco Acumulado (ton)",
+            "expression": [
+              "SUM(Avanco_Unidade[Ton_Acumulado])"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "2 Avanco"
+          },
+          {
+            "name": "Avanco no Mes (ton)",
+            "expression": [
+              "VAR OrdemAtual = MAX(Meses[Ordem])",
+              "VAR Atual = [Avanco Acumulado (ton)]",
+              "VAR Anterior =",
+              "    CALCULATE(",
+              "        SUM(Avanco_Unidade[Ton_Acumulado]),",
+              "        ALL(Meses),",
+              "        Meses[Ordem] = OrdemAtual - 1",
+              "    )",
+              "RETURN",
+              "    Atual - Anterior"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "2 Avanco"
+          },
+          {
+            "name": "Saldo a Realizar (ton)",
+            "expression": [
+              "[Peso Total (ton)] - [Avanco Acumulado (ton)]"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "2 Avanco"
+          },
+          {
+            "name": "% Avanco",
+            "expression": [
+              "DIVIDE([Avanco Acumulado (ton)], [Peso Total (ton)])"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "2 Avanco"
+          },
+          {
+            "name": "Ultimo Mes",
+            "expression": [
+              "MAXX(ALLSELECTED(Meses), Meses[Ordem])"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "2 Avanco"
+          },
+          {
+            "name": "Fabricado Acumulado (ton)",
+            "expression": [
+              "CALCULATE(SUM(Avanco_Unidade[Ton_Acumulado]), ALL(Etapas), Etapas[Etapa] = \"Fabricado\")"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "2 Avanco"
+          },
+          {
+            "name": "Liberado END Acumulado (ton)",
+            "expression": [
+              "CALCULATE(SUM(Avanco_Unidade[Ton_Acumulado]), ALL(Etapas), Etapas[Etapa] = \"Liberado END\")"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "2 Avanco"
+          },
+          {
+            "name": "Fabricado (ton)",
+            "expression": [
+              "CALCULATE(",
+              "    SUM(Avanco_Unidade[Ton_Acumulado]),",
+              "    Meses[Ordem] = [Ultimo Mes],",
+              "    ALL(Etapas),",
+              "    Etapas[Etapa] = \"Fabricado\"",
+              ")"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "3 Posicao atual"
+          },
+          {
+            "name": "Soldado (ton)",
+            "expression": [
+              "CALCULATE(",
+              "    SUM(Avanco_Unidade[Ton_Acumulado]),",
+              "    Meses[Ordem] = [Ultimo Mes],",
+              "    ALL(Etapas),",
+              "    Etapas[Etapa] = \"Soldado\"",
+              ")"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "3 Posicao atual"
+          },
+          {
+            "name": "Liberado END (ton)",
+            "expression": [
+              "CALCULATE(",
+              "    SUM(Avanco_Unidade[Ton_Acumulado]),",
+              "    Meses[Ordem] = [Ultimo Mes],",
+              "    ALL(Etapas),",
+              "    Etapas[Etapa] = \"Liberado END\"",
+              ")"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "3 Posicao atual"
+          },
+          {
+            "name": "Teste Hidrostatico (ton)",
+            "expression": [
+              "CALCULATE(",
+              "    SUM(Avanco_Unidade[Ton_Acumulado]),",
+              "    Meses[Ordem] = [Ultimo Mes],",
+              "    ALL(Etapas),",
+              "    Etapas[Etapa] = \"Teste Hidrostático\"",
+              ")"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "3 Posicao atual"
+          },
+          {
+            "name": "% Fabricado",
+            "expression": [
+              "DIVIDE([Fabricado (ton)], [Peso Total (ton)])"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "3 Posicao atual"
+          },
+          {
+            "name": "% Concluido (Liberado END)",
+            "expression": [
+              "DIVIDE([Liberado END (ton)], [Peso Total (ton)])"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "3 Posicao atual"
+          },
+          {
+            "name": "Avanco SOP (ton)",
+            "expression": [
+              "SUM(Avanco_SOP[Ton_Acumulado])"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "4 SOP"
+          },
+          {
+            "name": "Peso Liberado SOP (ton)",
+            "expression": [
+              "SUM(Ranking_SOP[Peso Liberado (ton)])"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "4 SOP"
+          },
+          {
+            "name": "% Medio Avanco SOP",
+            "expression": [
+              "DIVIDE(AVERAGE(Ranking_SOP[% Liberado]), 100)"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "4 SOP"
+          },
+          {
+            "name": "Fabricado por Material (ton)",
+            "expression": [
+              "SUM(Material_Fabricado[Ton_Fabricado_Acumulado])"
+            ],
+            "formatString": "#,0.000",
+            "displayFolder": "5 Material"
+          },
+          {
+            "name": "Dias Medios",
+            "expression": [
+              "AVERAGE(Tempo_Medio[Dias])"
+            ],
+            "formatString": "#,0.0",
+            "displayFolder": "5 Material"
+          },
+          {
+            "name": "Juntas Total",
+            "expression": [
+              "SUM(Juntas_KPIs[Juntas (total)])"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "Juntas Soldadas",
+            "expression": [
+              "SUM(Juntas_KPIs[Soldadas])"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "Juntas Liberadas END",
+            "expression": [
+              "SUM(Juntas_KPIs[Liberadas END])"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "% Juntas Soldadas",
+            "expression": [
+              "DIVIDE([Juntas Soldadas], [Juntas Total])"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "% Juntas Liberadas END",
+            "expression": [
+              "DIVIDE([Juntas Liberadas END], [Juntas Total])"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "Reparos",
+            "expression": [
+              "SUM(Juntas_KPIs[Reparos 1a])"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "% Reparo",
+            "expression": [
+              "DIVIDE([Reparos], [Juntas Soldadas])"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "Juntas Acumuladas",
+            "expression": [
+              "SUM(Juntas_Curva[Juntas])"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "Juntas Soldadas por Material",
+            "expression": [
+              "SUM(Juntas_Material[Juntas Soldadas])"
+            ],
+            "formatString": "#,0",
+            "displayFolder": "6 Juntas"
+          },
+          {
+            "name": "% Pintura",
+            "expression": [
+              "DIVIDE(SUM(KPIs[Pintura Realizada (m2)]), SUM(KPIs[Pintura Prevista (m2)]))"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "7 Acabamento"
+          },
+          {
+            "name": "% Isolamento",
+            "expression": [
+              "DIVIDE(SUM(KPIs[Isolamento Realizado (m2)]), SUM(KPIs[Isolamento Previsto (m2)]))"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "7 Acabamento"
+          },
+          {
+            "name": "% Peso com STH",
+            "expression": [
+              "DIVIDE(SUM(KPIs[% Peso com STH]), 100)"
+            ],
+            "formatString": "0.0%",
+            "displayFolder": "7 Acabamento"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "b6b32be4-92ce-56a2-a7f6-f4b1720ad1a6",
+        "fromTable": "Avanco_Unidade",
+        "fromColumn": "Ordem",
+        "toTable": "Meses",
+        "toColumn": "Ordem"
+      },
+      {
+        "name": "fe8154c6-40e5-52d8-b7c6-af217d5a1c94",
+        "fromTable": "Avanco_SOP",
+        "fromColumn": "Ordem",
+        "toTable": "Meses",
+        "toColumn": "Ordem"
+      },
+      {
+        "name": "5ac42291-fa83-5c8f-b280-ad2db63b26b2",
+        "fromTable": "Material_Fabricado",
+        "fromColumn": "Ordem",
+        "toTable": "Meses",
+        "toColumn": "Ordem"
+      },
+      {
+        "name": "fe0b919c-a61f-5b0d-a295-351ae03b3c00",
+        "fromTable": "Juntas_Curva",
+        "fromColumn": "Mes",
+        "toTable": "Meses",
+        "toColumn": "Mes"
+      },
+      {
+        "name": "5b0b444f-716d-5c59-abc7-be685bba9e2e",
+        "fromTable": "Juntas_Material",
+        "fromColumn": "Mes",
+        "toTable": "Meses",
+        "toColumn": "Mes"
+      },
+      {
+        "name": "4ff78a95-ebc3-5ae0-b273-63255699cb09",
+        "fromTable": "Avanco_Unidade",
+        "fromColumn": "Etapa",
+        "toTable": "Etapas",
+        "toColumn": "Etapa"
+      },
+      {
+        "name": "dbe61bb1-401b-55ed-bb40-74adda543025",
+        "fromTable": "Avanco_SOP",
+        "fromColumn": "Etapa",
+        "toTable": "Etapas",
+        "toColumn": "Etapa"
+      },
+      {
+        "name": "d731da76-30e4-5df3-8118-c377d8106163",
+        "fromTable": "Avanco_Unidade",
+        "fromColumn": "Unidade",
+        "toTable": "Unidades",
+        "toColumn": "Unidade"
+      },
+      {
+        "name": "800abec2-da76-5993-8920-67899d020bd7",
+        "fromTable": "Spools",
+        "fromColumn": "Unidade",
+        "toTable": "Unidades",
+        "toColumn": "Unidade"
+      },
+      {
+        "name": "cd14c43f-1b40-5f39-9a6b-ac75f043cfb8",
+        "fromTable": "Material_Fabricado",
+        "fromColumn": "Material",
+        "toTable": "Materiais",
+        "toColumn": "Material"
+      },
+      {
+        "name": "029b9a85-5fff-5454-9b5e-f07117f80916",
+        "fromTable": "Tempo_Medio",
+        "fromColumn": "Material",
+        "toTable": "Materiais",
+        "toColumn": "Material"
+      },
+      {
+        "name": "f8445a2b-20b1-5a1a-a2dc-67bb7f5849e7",
+        "fromTable": "Juntas_Material",
+        "fromColumn": "Material",
+        "toTable": "Materiais",
+        "toColumn": "Material"
+      },
+      {
+        "name": "446c6c8f-6e9d-5534-8f08-67cccc3413eb",
+        "fromTable": "Avanco_SOP",
+        "fromColumn": "SOP",
+        "toTable": "Ranking_SOP",
+        "toColumn": "SOP"
+      }
+    ],
+    "expressions": [
+      {
+        "name": "FonteDados",
+        "kind": "m",
+        "expression": [
+          "\"https://avanco-tubulacao.vercel.app\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]"
+        ],
+        "annotations": [
+          {
+            "name": "PBI_NavigationStepName",
+            "value": "Navegação"
+          },
+          {
+            "name": "PBI_ResultType",
+            "value": "Text"
+          }
+        ]
+      },
+      {
+        "name": "fnCarregar",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    fnCarregar = (arquivo as text) as record =>",
+          "        let",
+          "            Conteudo =",
+          "                if Text.StartsWith(Text.Lower(FonteDados), \"http\")",
+          "                then Web.Contents(FonteDados, [RelativePath = arquivo])",
+          "                else File.Contents(",
+          "                    FonteDados",
+          "                    & (if Text.EndsWith(FonteDados, \"\\\") then \"\" else \"\\\")",
+          "                    & arquivo",
+          "                ),",
+          "            Documento = Json.Document(Conteudo, 65001)",
+          "        in",
+          "            Documento",
+          "in",
+          "    fnCarregar"
+        ],
+        "annotations": [
+          {
+            "name": "PBI_NavigationStepName",
+            "value": "Navegação"
+          },
+          {
+            "name": "PBI_ResultType",
+            "value": "Function"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "name": "PBI_QueryOrder",
+        "value": "[\"FonteDados\", \"fnCarregar\", \"Meses\", \"Etapas\", \"Unidades\", \"Materiais\", \"Avanco_Unidade\", \"Avanco_SOP\", \"Spools\", \"Ranking_SOP\", \"Ranking_Linhas\", \"Material_Fabricado\", \"Tempo_Medio\", \"KPIs\", \"Juntas_KPIs\", \"Soldadores\", \"Reparos_Diametro\", \"Juntas_Curva\", \"Juntas_Material\", \"Medidas\"]"
+      },
+      {
+        "name": "__PBI_TimeIntelligenceEnabled",
+        "value": "0"
+      },
+      {
+        "name": "PBIDesktopVersion",
+        "value": "2.140.1454.0 (25.08)"
+      }
+    ]
+  }
+}
