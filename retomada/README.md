@@ -53,3 +53,27 @@ originais do ControlTub não precisam ficar no repositório — são grandes
 
 Parâmetros opcionais: `--data-inicio AAAA-MM-DD` (padrão `2026-10-01`) e
 `--prazo-meses N` (padrão `32`), caso o contrato mude.
+
+## Levar isso pro painel web (avanco-tubulacao.vercel.app)
+
+O painel já sabe ler o formato bruto do ControlTub (mesma aba "SGS"/"MAPA_JUNTA"
+que ele sempre aceitou) — então dá pra publicar a retomada nele com o upload de
+sempre, subindo as abas **Remanescentes_Spools** e **Remanescentes_Juntas**
+desta planilha (salvando cada uma como um `.xlsx` avulso com a aba renomeada
+para `SGS` / `MAPA_JUNTA`, no mesmo padrão do arquivo original).
+
+Só tem uma pegadinha: como remanescente por definição não tem data de "Liberado
+END", e boa parte também não tem NENHUMA data ainda nas outras etapas, o painel
+detectaria uma janela de tempo sem sentido (ou vazia) se não soubesse que esse é
+um recomeço com data e prazo contratual próprios. Por isso o painel agora tem
+uma opção **"Janela de Retomada"** no topo (ao lado de "Sistema/Unidade"):
+
+1. Marque **Ativar**, preencha **Início** (`01/10/2026`) e **Prazo** (`32` meses).
+2. Depois disso, suba o `.xlsx` de Remanescentes normalmente pelo botão
+   "Mapa de Spools ou Juntas". O gráfico passa a mostrar exatamente a janela
+   out/2026 → mai/2029, mesmo que ainda não exista nenhum dado real nesse
+   período — e, se o trabalho real avançar além do prazo, o painel estende a
+   janela sozinho pra mostrar o atraso em vez de cortar o gráfico.
+3. Essa opção só vale a partir do **próximo upload** — não altera o que já
+   está publicado hoje, e fica desligada por padrão pra quem não mexer nela
+   (comportamento do painel 100% igual ao de sempre).

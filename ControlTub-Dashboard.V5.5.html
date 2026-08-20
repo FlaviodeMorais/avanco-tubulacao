@@ -220,6 +220,16 @@ main{
   min-width:260px;
 }
 .search-input::placeholder{ color:var(--text-muted); }
+.retomada-controls{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.retomada-toggle{
+  display:flex; align-items:center; gap:5px; font-family:var(--body); font-size:12.5px;
+  color:var(--text-primary); cursor:pointer; white-space:nowrap;
+}
+.retomada-controls .search-input{ min-width:0; padding:8px 10px; font-size:12.5px; }
+#retomadaInicio{ width:138px; }
+#retomadaPrazo{ width:52px; }
+.retomada-unit{ font-family:var(--body); font-size:11px; color:var(--text-muted); }
+.retomada-hint{ font-family:var(--body); font-size:10px; color:var(--text-muted); margin-top:5px; max-width:280px; }
 .detail-scroll{ overflow-x:auto; border:1px solid var(--hairline); border-radius:3px; max-height:480px; overflow-y:auto; }
 .detail-table{ border-collapse:collapse; width:100%; font-size:12.5px; }
 .detail-table th{
@@ -385,6 +395,19 @@ main{
       <select id="unidadeSelect" class="select-industrial">
         <option value="__ALL__">Todos os sistemas</option>
       </select>
+    </div>
+    <div class="topbar-field">
+      <label class="field-label" for="retomadaAtiva">Janela de Retomada</label>
+      <div class="retomada-controls">
+        <label class="retomada-toggle" title="Garante que o cronograma mostre o contrato novo (início + prazo) mesmo antes de existir dado real nesse período">
+          <input type="checkbox" id="retomadaAtiva">
+          Ativar
+        </label>
+        <input type="date" id="retomadaInicio" class="search-input" title="Início do contrato / retomada">
+        <input type="number" id="retomadaPrazo" class="search-input" min="1" max="240" title="Prazo do contrato, em meses">
+        <span class="retomada-unit">meses</span>
+      </div>
+      <div class="retomada-hint">Vale a partir do próximo upload de Spools (não muda o que já está publicado)</div>
     </div>
     <div class="topbar-field">
       <label class="field-label">Atualizar dados</label>
@@ -850,6 +873,33 @@ function parsePolegadas(s){
 function monthEndOf(y, m){ return new Date(y, m+1, 0, 23, 59, 59); }
 function monthKey(y, m){ return y*12+m; }
 
+// ---------- Janela de Retomada (opcional) ----------
+// Por padrão, a janela de tempo do painel é 100% detectada a partir das
+// datas dos dados (comportamento de sempre). Quando a obra pára e retoma
+// meses/anos depois com um novo prazo contratual, isso não bate mais: os
+// spools remanescentes ainda não têm data nenhuma no novo período, então a
+// janela "detectada" fica presa no histórico antigo (ou, se a planilha só
+// tiver remanescentes sem NENHUMA data, cai no mês atual). A "Janela de
+// Retomada" resolve isso: quando ativada, garante que a janela exibida
+// cubra pelo menos [início, início+prazo) do novo contrato, mesmo sem
+// dados reais ainda naquele período. Desativada (padrão), zero mudança de
+// comportamento — só afeta quem liga a opção explicitamente no topbar.
+const LS_KEY_RETOMADA = 'controltub_retomada_v1';
+function loadRetomadaConfig(){
+  const salvo = loadFromLocalStorage(LS_KEY_RETOMADA) || {};
+  return {
+    ativa: salvo.ativa === true,
+    inicio: salvo.inicio || '2026-10-01',       // AAAA-MM-DD
+    prazoMeses: Number(salvo.prazoMeses) || 32,
+  };
+}
+let RETOMADA = loadRetomadaConfig();
+function saveRetomadaConfig(){ saveToLocalStorage(LS_KEY_RETOMADA, RETOMADA); }
+function retomadaInicioKey(){
+  const [ano, mes] = RETOMADA.inicio.split('-').map(Number);
+  return monthKey(ano, mes - 1);
+}
+
 function computeDashboardData(rows){
   // rows: array of {iso, spool, linha, unid, peso, sfab, smon, sop, sth, stageDates: {stageName: Date|null}}
   let minKey = null, maxKey = null;
@@ -865,10 +915,24 @@ function computeDashboardData(rows){
   });
   if(minKey===null){ minKey = maxKey = monthKey(new Date().getFullYear(), new Date().getMonth()); }
 
-  // Mostra só os últimos 24 meses — sem isso, uma data isolada e distante
-  // (ex.: erro de digitação numa planilha) alarga o eixo do tempo inteiro
-  // com uma cauda de meses zerados lá atrás.
-  const WINDOW_MONTHS = 24;
+  // Mostra só os últimos 24 meses (ou o prazo da retomada, se maior) — sem
+  // isso, uma data isolada e distante (ex.: erro de digitação numa
+  // planilha) alarga o eixo do tempo inteiro com uma cauda de meses
+  // zerados lá atrás.
+  let WINDOW_MONTHS = 24;
+
+  if(RETOMADA.ativa){
+    const inicioKey = retomadaInicioKey();
+    const fimKey = inicioKey + RETOMADA.prazoMeses - 1;
+    // janela do cronograma novo: começa no início da retomada (ignora
+    // datas anteriores à paralisação, que só embaralhariam o gráfico) e
+    // sempre mostra o fim do contrato, mesmo sem dado real lá ainda — a
+    // não ser que já exista progresso real além do prazo (aí mostra o
+    // atraso de verdade em vez de cortar o gráfico).
+    minKey = inicioKey;
+    maxKey = Math.max(maxKey, fimKey);
+    WINDOW_MONTHS = Math.max(WINDOW_MONTHS, RETOMADA.prazoMeses);
+  }
   if(maxKey - minKey + 1 > WINDOW_MONTHS) minKey = maxKey - WINDOW_MONTHS + 1;
 
   const months = [];
@@ -1528,6 +1592,28 @@ unidadeSelect.addEventListener('change', e=>{
   applyDetailFilter();
 });
 statusMonSelect.addEventListener('change', applyDetailFilter);
+
+// ---------- Janela de Retomada — UI (ver definição de RETOMADA acima) ----------
+(function initRetomadaUI(){
+  const chk = document.getElementById('retomadaAtiva');
+  const inicioEl = document.getElementById('retomadaInicio');
+  const prazoEl = document.getElementById('retomadaPrazo');
+  if(!chk || !inicioEl || !prazoEl) return;
+  chk.checked = RETOMADA.ativa;
+  inicioEl.value = RETOMADA.inicio;
+  prazoEl.value = RETOMADA.prazoMeses;
+  function persistir(){
+    RETOMADA = {
+      ativa: chk.checked,
+      inicio: inicioEl.value || RETOMADA.inicio,
+      prazoMeses: Math.max(1, Number(prazoEl.value) || RETOMADA.prazoMeses),
+    };
+    saveRetomadaConfig();
+  }
+  chk.addEventListener('change', persistir);
+  inicioEl.addEventListener('change', persistir);
+  prazoEl.addEventListener('change', persistir);
+})();
 
 // ---------- KPIs ----------
 function renderKPIs(){
