@@ -1,0 +1,171 @@
+// Medidas DAX — criar na tabela 'Medidas'.
+// Formato de exibição indicado em comentário no fim de cada medida.
+
+// [1 Escopo]
+Peso Total (ton) =
+DIVIDE(SUM(Spools[Peso_kg]), 1000)   // formato: #,0.000
+
+// [1 Escopo]
+Qtd Spools =
+COUNTROWS(Spools)   // formato: #,0
+
+// [1 Escopo]
+Qtd Nao Iniciados =
+CALCULATE(COUNTROWS(Spools), Spools[CodStatusMon] = "36")   // formato: #,0
+
+// [1 Escopo]
+Peso Nao Iniciado (ton) =
+DIVIDE(CALCULATE(SUM(Spools[Peso_kg]), Spools[CodStatusMon] = "36"), 1000)   // formato: #,0.000
+
+// [1 Escopo]
+% Nao Iniciado =
+DIVIDE([Peso Nao Iniciado (ton)], [Peso Total (ton)])   // formato: 0.0%
+
+// [2 Avanco]
+Avanco Acumulado (ton) =
+SUM(Avanco_Unidade[Ton_Acumulado])   // formato: #,0.000
+
+// [2 Avanco]
+Avanco no Mes (ton) =
+VAR OrdemAtual = MAX(Meses[Ordem])
+VAR Atual = [Avanco Acumulado (ton)]
+VAR Anterior =
+    CALCULATE(
+        SUM(Avanco_Unidade[Ton_Acumulado]),
+        ALL(Meses),
+        Meses[Ordem] = OrdemAtual - 1
+    )
+RETURN
+    Atual - Anterior   // formato: #,0.000
+
+// [2 Avanco]
+Saldo a Realizar (ton) =
+[Peso Total (ton)] - [Avanco Acumulado (ton)]   // formato: #,0.000
+
+// [2 Avanco]
+% Avanco =
+DIVIDE([Avanco Acumulado (ton)], [Peso Total (ton)])   // formato: 0.0%
+
+// [2 Avanco]
+Ultimo Mes =
+MAXX(ALLSELECTED(Meses), Meses[Ordem])   // formato: #,0
+
+// [2 Avanco]
+Fabricado Acumulado (ton) =
+CALCULATE(SUM(Avanco_Unidade[Ton_Acumulado]), ALL(Etapas), Etapas[Etapa] = "Fabricado")   // formato: #,0.000
+
+// [2 Avanco]
+Liberado END Acumulado (ton) =
+CALCULATE(SUM(Avanco_Unidade[Ton_Acumulado]), ALL(Etapas), Etapas[Etapa] = "Liberado END")   // formato: #,0.000
+
+// [3 Posicao atual]
+Fabricado (ton) =
+CALCULATE(
+    SUM(Avanco_Unidade[Ton_Acumulado]),
+    Meses[Ordem] = [Ultimo Mes],
+    ALL(Etapas),
+    Etapas[Etapa] = "Fabricado"
+)   // formato: #,0.000
+
+// [3 Posicao atual]
+Soldado (ton) =
+CALCULATE(
+    SUM(Avanco_Unidade[Ton_Acumulado]),
+    Meses[Ordem] = [Ultimo Mes],
+    ALL(Etapas),
+    Etapas[Etapa] = "Soldado"
+)   // formato: #,0.000
+
+// [3 Posicao atual]
+Liberado END (ton) =
+CALCULATE(
+    SUM(Avanco_Unidade[Ton_Acumulado]),
+    Meses[Ordem] = [Ultimo Mes],
+    ALL(Etapas),
+    Etapas[Etapa] = "Liberado END"
+)   // formato: #,0.000
+
+// [3 Posicao atual]
+Teste Hidrostatico (ton) =
+CALCULATE(
+    SUM(Avanco_Unidade[Ton_Acumulado]),
+    Meses[Ordem] = [Ultimo Mes],
+    ALL(Etapas),
+    Etapas[Etapa] = "Teste Hidrostático"
+)   // formato: #,0.000
+
+// [3 Posicao atual]
+% Fabricado =
+DIVIDE([Fabricado (ton)], [Peso Total (ton)])   // formato: 0.0%
+
+// [3 Posicao atual]
+% Concluido (Liberado END) =
+DIVIDE([Liberado END (ton)], [Peso Total (ton)])   // formato: 0.0%
+
+// [4 SOP]
+Avanco SOP (ton) =
+SUM(Avanco_SOP[Ton_Acumulado])   // formato: #,0.000
+
+// [4 SOP]
+Peso Liberado SOP (ton) =
+SUM(Ranking_SOP[Peso Liberado (ton)])   // formato: #,0.000
+
+// [4 SOP]
+% Medio Avanco SOP =
+DIVIDE(AVERAGE(Ranking_SOP[% Liberado]), 100)   // formato: 0.0%
+
+// [5 Material]
+Fabricado por Material (ton) =
+SUM(Material_Fabricado[Ton_Fabricado_Acumulado])   // formato: #,0.000
+
+// [5 Material]
+Dias Medios =
+AVERAGE(Tempo_Medio[Dias])   // formato: #,0.0
+
+// [6 Juntas]
+Juntas Total =
+SUM(Juntas_KPIs[Juntas (total)])   // formato: #,0
+
+// [6 Juntas]
+Juntas Soldadas =
+SUM(Juntas_KPIs[Soldadas])   // formato: #,0
+
+// [6 Juntas]
+Juntas Liberadas END =
+SUM(Juntas_KPIs[Liberadas END])   // formato: #,0
+
+// [6 Juntas]
+% Juntas Soldadas =
+DIVIDE([Juntas Soldadas], [Juntas Total])   // formato: 0.0%
+
+// [6 Juntas]
+% Juntas Liberadas END =
+DIVIDE([Juntas Liberadas END], [Juntas Total])   // formato: 0.0%
+
+// [6 Juntas]
+Reparos =
+SUM(Juntas_KPIs[Reparos 1a])   // formato: #,0
+
+// [6 Juntas]
+% Reparo =
+DIVIDE([Reparos], [Juntas Soldadas])   // formato: 0.0%
+
+// [6 Juntas]
+Juntas Acumuladas =
+SUM(Juntas_Curva[Juntas])   // formato: #,0
+
+// [6 Juntas]
+Juntas Soldadas por Material =
+SUM(Juntas_Material[Juntas Soldadas])   // formato: #,0
+
+// [7 Acabamento]
+% Pintura =
+DIVIDE(SUM(KPIs[Pintura Realizada (m2)]), SUM(KPIs[Pintura Prevista (m2)]))   // formato: 0.0%
+
+// [7 Acabamento]
+% Isolamento =
+DIVIDE(SUM(KPIs[Isolamento Realizado (m2)]), SUM(KPIs[Isolamento Previsto (m2)]))   // formato: 0.0%
+
+// [7 Acabamento]
+% Peso com STH =
+DIVIDE(SUM(KPIs[% Peso com STH]), 100)   // formato: 0.0%

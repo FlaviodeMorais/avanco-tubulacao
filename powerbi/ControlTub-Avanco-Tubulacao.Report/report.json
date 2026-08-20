@@ -1,0 +1,376 @@
+{
+  "id": 0,
+  "resourcePackages": [],
+  "sections": [
+    {
+      "id": 0,
+      "name": "pagina1",
+      "displayName": "Visao Geral",
+      "filters": "[]",
+      "ordinal": 0,
+      "visualContainers": [
+        {
+          "x": 16,
+          "y": 12,
+          "z": 0,
+          "width": 236,
+          "height": 92,
+          "config": "{\"name\": \"p1_card0\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 12, \"z\": 0, \"width\": 236, \"height\": 92, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.Peso Total (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso Total (ton)\"}, \"Name\": \"Medidas.Peso Total (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Peso Total (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 268,
+          "y": 12,
+          "z": 1,
+          "width": 236,
+          "height": 92,
+          "config": "{\"name\": \"p1_card1\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 268, \"y\": 12, \"z\": 1, \"width\": 236, \"height\": 92, \"tabOrder\": 1}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.Fabricado (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Fabricado (ton)\"}, \"Name\": \"Medidas.Fabricado (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Fabricado (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 520,
+          "y": 12,
+          "z": 2,
+          "width": 236,
+          "height": 92,
+          "config": "{\"name\": \"p1_card2\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 520, \"y\": 12, \"z\": 2, \"width\": 236, \"height\": 92, \"tabOrder\": 2}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.Liberado END (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Liberado END (ton)\"}, \"Name\": \"Medidas.Liberado END (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Liberado END (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 772,
+          "y": 12,
+          "z": 3,
+          "width": 236,
+          "height": 92,
+          "config": "{\"name\": \"p1_card3\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 772, \"y\": 12, \"z\": 3, \"width\": 236, \"height\": 92, \"tabOrder\": 3}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.% Concluido (Liberado END)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Concluido (Liberado END)\"}, \"Name\": \"Medidas.% Concluido (Liberado END)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'% Concluido (Liberado END)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 1024,
+          "y": 12,
+          "z": 4,
+          "width": 236,
+          "height": 92,
+          "config": "{\"name\": \"p1_card4\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 1024, \"y\": 12, \"z\": 4, \"width\": 236, \"height\": 92, \"tabOrder\": 4}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.Qtd Spools\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Qtd Spools\"}, \"Name\": \"Medidas.Qtd Spools\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Qtd Spools'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 16,
+          "y": 116,
+          "z": 0,
+          "width": 232,
+          "height": 288,
+          "config": "{\"name\": \"p1_slicer\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 116, \"z\": 0, \"width\": 232, \"height\": 288, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"slicer\", \"projections\": {\"Values\": [{\"queryRef\": \"Unidades.Unidade\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Unidades\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Unidade\"}, \"Name\": \"Unidades.Unidade\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Unidade'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 264,
+          "y": 116,
+          "z": 0,
+          "width": 1000,
+          "height": 288,
+          "config": "{\"name\": \"p1_curva\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 264, \"y\": 116, \"z\": 0, \"width\": 1000, \"height\": 288, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"lineChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Meses.Mes\"}], \"Series\": [{\"queryRef\": \"Etapas.Etapa\"}], \"Y\": [{\"queryRef\": \"Medidas.Avanco Acumulado (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Meses\", \"Type\": 0}, {\"Name\": \"t1\", \"Entity\": \"Etapas\", \"Type\": 0}, {\"Name\": \"t2\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Mes\"}, \"Name\": \"Meses.Mes\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t1\"}}, \"Property\": \"Etapa\"}, \"Name\": \"Etapas.Etapa\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t2\"}}, \"Property\": \"Avanco Acumulado (ton)\"}, \"Name\": \"Medidas.Avanco Acumulado (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Curva de avanco acumulado por etapa (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 16,
+          "y": 420,
+          "z": 0,
+          "width": 616,
+          "height": 284,
+          "config": "{\"name\": \"p1_sop\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 420, \"z\": 0, \"width\": 616, \"height\": 284, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"clusteredBarChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Ranking_SOP.SOP\"}], \"Y\": [{\"queryRef\": \"Sum(Ranking_SOP.Peso Total (ton))\"}, {\"queryRef\": \"Sum(Ranking_SOP.Peso Liberado (ton))\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Ranking_SOP\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"SOP\"}, \"Name\": \"Ranking_SOP.SOP\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso Total (ton)\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_SOP.Peso Total (ton))\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso Liberado (ton)\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_SOP.Peso Liberado (ton))\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Pacotes SOP - previsto x liberado (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 648,
+          "y": 420,
+          "z": 0,
+          "width": 616,
+          "height": 284,
+          "config": "{\"name\": \"p1_mes\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 648, \"y\": 420, \"z\": 0, \"width\": 616, \"height\": 284, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"clusteredColumnChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Meses.Mes\"}], \"Y\": [{\"queryRef\": \"Medidas.Avanco no Mes (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Meses\", \"Type\": 0}, {\"Name\": \"t1\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Mes\"}, \"Name\": \"Meses.Mes\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t1\"}}, \"Property\": \"Avanco no Mes (ton)\"}, \"Name\": \"Medidas.Avanco no Mes (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Avanco realizado no mes (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        }
+      ],
+      "config": "{}",
+      "displayOption": 1,
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "id": 1,
+      "name": "pagina2",
+      "displayName": "Por Unidade",
+      "filters": "[]",
+      "ordinal": 1,
+      "visualContainers": [
+        {
+          "x": 16,
+          "y": 16,
+          "z": 0,
+          "width": 240,
+          "height": 400,
+          "config": "{\"name\": \"p2_slicer\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 16, \"z\": 0, \"width\": 240, \"height\": 400, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"slicer\", \"projections\": {\"Values\": [{\"queryRef\": \"Meses.Mes\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Meses\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Mes\"}, \"Name\": \"Meses.Mes\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Mes de referencia'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 272,
+          "y": 16,
+          "z": 0,
+          "width": 992,
+          "height": 400,
+          "config": "{\"name\": \"p2_matriz\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 272, \"y\": 16, \"z\": 0, \"width\": 992, \"height\": 400, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"pivotTable\", \"projections\": {\"Rows\": [{\"queryRef\": \"Unidades.Unidade\"}], \"Columns\": [{\"queryRef\": \"Etapas.Etapa\"}], \"Values\": [{\"queryRef\": \"Medidas.Avanco Acumulado (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Unidades\", \"Type\": 0}, {\"Name\": \"t1\", \"Entity\": \"Etapas\", \"Type\": 0}, {\"Name\": \"t2\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Unidade\"}, \"Name\": \"Unidades.Unidade\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t1\"}}, \"Property\": \"Etapa\"}, \"Name\": \"Etapas.Etapa\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t2\"}}, \"Property\": \"Avanco Acumulado (ton)\"}, \"Name\": \"Medidas.Avanco Acumulado (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Avanco acumulado por unidade e etapa (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 16,
+          "y": 432,
+          "z": 0,
+          "width": 1248,
+          "height": 272,
+          "config": "{\"name\": \"p2_curva\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 432, \"z\": 0, \"width\": 1248, \"height\": 272, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"lineChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Meses.Mes\"}], \"Series\": [{\"queryRef\": \"Unidades.Unidade\"}], \"Y\": [{\"queryRef\": \"Medidas.Liberado END Acumulado (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Meses\", \"Type\": 0}, {\"Name\": \"t1\", \"Entity\": \"Unidades\", \"Type\": 0}, {\"Name\": \"t2\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Mes\"}, \"Name\": \"Meses.Mes\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t1\"}}, \"Property\": \"Unidade\"}, \"Name\": \"Unidades.Unidade\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t2\"}}, \"Property\": \"Liberado END Acumulado (ton)\"}, \"Name\": \"Medidas.Liberado END Acumulado (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Liberado END acumulado por unidade (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        }
+      ],
+      "config": "{}",
+      "displayOption": 1,
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "id": 2,
+      "name": "pagina3",
+      "displayName": "Pacotes SOP",
+      "filters": "[]",
+      "ordinal": 2,
+      "visualContainers": [
+        {
+          "x": 16,
+          "y": 16,
+          "z": 0,
+          "width": 760,
+          "height": 688,
+          "config": "{\"name\": \"p3_tabela\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 16, \"z\": 0, \"width\": 760, \"height\": 688, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"tableEx\", \"projections\": {\"Values\": [{\"queryRef\": \"Ranking_SOP.SOP\"}, {\"queryRef\": \"Sum(Ranking_SOP.Spools)\"}, {\"queryRef\": \"Sum(Ranking_SOP.Peso Total (ton))\"}, {\"queryRef\": \"Sum(Ranking_SOP.Peso Fabricado (ton))\"}, {\"queryRef\": \"Sum(Ranking_SOP.Peso Liberado (ton))\"}, {\"queryRef\": \"Sum(Ranking_SOP.% Liberado)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Ranking_SOP\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"SOP\"}, \"Name\": \"Ranking_SOP.SOP\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Spools\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_SOP.Spools)\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso Total (ton)\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_SOP.Peso Total (ton))\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso Fabricado (ton)\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_SOP.Peso Fabricado (ton))\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso Liberado (ton)\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_SOP.Peso Liberado (ton))\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Liberado\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_SOP.% Liberado)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Avanco por pacote SOP'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 792,
+          "y": 16,
+          "z": 0,
+          "width": 472,
+          "height": 340,
+          "config": "{\"name\": \"p3_curva\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 792, \"y\": 16, \"z\": 0, \"width\": 472, \"height\": 340, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"lineChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Meses.Mes\"}], \"Series\": [{\"queryRef\": \"Etapas.Etapa\"}], \"Y\": [{\"queryRef\": \"Medidas.Avanco SOP (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Meses\", \"Type\": 0}, {\"Name\": \"t1\", \"Entity\": \"Etapas\", \"Type\": 0}, {\"Name\": \"t2\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Mes\"}, \"Name\": \"Meses.Mes\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t1\"}}, \"Property\": \"Etapa\"}, \"Name\": \"Etapas.Etapa\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t2\"}}, \"Property\": \"Avanco SOP (ton)\"}, \"Name\": \"Medidas.Avanco SOP (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Curva do SOP selecionado (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 792,
+          "y": 372,
+          "z": 0,
+          "width": 472,
+          "height": 332,
+          "config": "{\"name\": \"p3_slicer\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 792, \"y\": 372, \"z\": 0, \"width\": 472, \"height\": 332, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"slicer\", \"projections\": {\"Values\": [{\"queryRef\": \"Ranking_SOP.SOP\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Ranking_SOP\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"SOP\"}, \"Name\": \"Ranking_SOP.SOP\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Pacote SOP'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        }
+      ],
+      "config": "{}",
+      "displayOption": 1,
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "id": 3,
+      "name": "pagina4",
+      "displayName": "Spools",
+      "filters": "[]",
+      "ordinal": 3,
+      "visualContainers": [
+        {
+          "x": 16,
+          "y": 16,
+          "z": 0,
+          "width": 240,
+          "height": 220,
+          "config": "{\"name\": \"p4_slicer_un\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 16, \"z\": 0, \"width\": 240, \"height\": 220, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"slicer\", \"projections\": {\"Values\": [{\"queryRef\": \"Unidades.Unidade\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Unidades\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Unidade\"}, \"Name\": \"Unidades.Unidade\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Unidade'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 16,
+          "y": 248,
+          "z": 0,
+          "width": 240,
+          "height": 456,
+          "config": "{\"name\": \"p4_slicer_st\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 248, \"z\": 0, \"width\": 240, \"height\": 456, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"slicer\", \"projections\": {\"Values\": [{\"queryRef\": \"Spools.Status Montagem\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Spools\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Status Montagem\"}, \"Name\": \"Spools.Status Montagem\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Status de montagem'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 272,
+          "y": 16,
+          "z": 0,
+          "width": 992,
+          "height": 688,
+          "config": "{\"name\": \"p4_tabela\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 272, \"y\": 16, \"z\": 0, \"width\": 992, \"height\": 688, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"tableEx\", \"projections\": {\"Values\": [{\"queryRef\": \"Spools.ISO\"}, {\"queryRef\": \"Spools.Spool\"}, {\"queryRef\": \"Spools.Linha\"}, {\"queryRef\": \"Spools.Unidade\"}, {\"queryRef\": \"Sum(Spools.Peso_kg)\"}, {\"queryRef\": \"Spools.Status Fabricacao\"}, {\"queryRef\": \"Spools.Status Montagem\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Spools\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"ISO\"}, \"Name\": \"Spools.ISO\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Spool\"}, \"Name\": \"Spools.Spool\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Linha\"}, \"Name\": \"Spools.Linha\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Unidade\"}, \"Name\": \"Spools.Unidade\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso_kg\"}}, \"Function\": 0}, \"Name\": \"Sum(Spools.Peso_kg)\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Status Fabricacao\"}, \"Name\": \"Spools.Status Fabricacao\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Status Montagem\"}, \"Name\": \"Spools.Status Montagem\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Spools'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        }
+      ],
+      "config": "{}",
+      "displayOption": 1,
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "id": 4,
+      "name": "pagina5",
+      "displayName": "Juntas e Soldadores",
+      "filters": "[]",
+      "ordinal": 4,
+      "visualContainers": [
+        {
+          "x": 16,
+          "y": 12,
+          "z": 0,
+          "width": 300,
+          "height": 92,
+          "config": "{\"name\": \"p5_card0\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 12, \"z\": 0, \"width\": 300, \"height\": 92, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.Juntas Total\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Juntas Total\"}, \"Name\": \"Medidas.Juntas Total\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Juntas Total'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 332,
+          "y": 12,
+          "z": 1,
+          "width": 300,
+          "height": 92,
+          "config": "{\"name\": \"p5_card1\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 332, \"y\": 12, \"z\": 1, \"width\": 300, \"height\": 92, \"tabOrder\": 1}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.Juntas Soldadas\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Juntas Soldadas\"}, \"Name\": \"Medidas.Juntas Soldadas\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Juntas Soldadas'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 648,
+          "y": 12,
+          "z": 2,
+          "width": 300,
+          "height": 92,
+          "config": "{\"name\": \"p5_card2\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 648, \"y\": 12, \"z\": 2, \"width\": 300, \"height\": 92, \"tabOrder\": 2}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.% Juntas Soldadas\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Juntas Soldadas\"}, \"Name\": \"Medidas.% Juntas Soldadas\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'% Juntas Soldadas'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 964,
+          "y": 12,
+          "z": 3,
+          "width": 300,
+          "height": 92,
+          "config": "{\"name\": \"p5_card3\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 964, \"y\": 12, \"z\": 3, \"width\": 300, \"height\": 92, \"tabOrder\": 3}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.% Reparo\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Reparo\"}, \"Name\": \"Medidas.% Reparo\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'% Reparo'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 16,
+          "y": 116,
+          "z": 0,
+          "width": 624,
+          "height": 288,
+          "config": "{\"name\": \"p5_curva\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 116, \"z\": 0, \"width\": 624, \"height\": 288, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"lineChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Meses.Mes\"}], \"Series\": [{\"queryRef\": \"Juntas_Curva.Serie\"}], \"Y\": [{\"queryRef\": \"Medidas.Juntas Acumuladas\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Meses\", \"Type\": 0}, {\"Name\": \"t1\", \"Entity\": \"Juntas_Curva\", \"Type\": 0}, {\"Name\": \"t2\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Mes\"}, \"Name\": \"Meses.Mes\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t1\"}}, \"Property\": \"Serie\"}, \"Name\": \"Juntas_Curva.Serie\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t2\"}}, \"Property\": \"Juntas Acumuladas\"}, \"Name\": \"Medidas.Juntas Acumuladas\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Juntas acumuladas por mes'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 656,
+          "y": 116,
+          "z": 0,
+          "width": 608,
+          "height": 288,
+          "config": "{\"name\": \"p5_diam\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 656, \"y\": 116, \"z\": 0, \"width\": 608, \"height\": 288, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"clusteredColumnChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Reparos_Diametro.Diametro\"}], \"Y\": [{\"queryRef\": \"Sum(Reparos_Diametro.% Reparo)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Reparos_Diametro\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Diametro\"}, \"Name\": \"Reparos_Diametro.Diametro\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Reparo\"}}, \"Function\": 0}, \"Name\": \"Sum(Reparos_Diametro.% Reparo)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Indice de reparo por diametro (%)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 16,
+          "y": 420,
+          "z": 0,
+          "width": 1248,
+          "height": 284,
+          "config": "{\"name\": \"p5_tabela\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 420, \"z\": 0, \"width\": 1248, \"height\": 284, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"tableEx\", \"projections\": {\"Values\": [{\"queryRef\": \"Soldadores.Soldador\"}, {\"queryRef\": \"Sum(Soldadores.Juntas)\"}, {\"queryRef\": \"Sum(Soldadores.Soldadas)\"}, {\"queryRef\": \"Sum(Soldadores.Reparos)\"}, {\"queryRef\": \"Sum(Soldadores.% Reparo)\"}, {\"queryRef\": \"Sum(Soldadores.% Conclusao)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Soldadores\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Soldador\"}, \"Name\": \"Soldadores.Soldador\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Juntas\"}}, \"Function\": 0}, \"Name\": \"Sum(Soldadores.Juntas)\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Soldadas\"}}, \"Function\": 0}, \"Name\": \"Sum(Soldadores.Soldadas)\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Reparos\"}}, \"Function\": 0}, \"Name\": \"Sum(Soldadores.Reparos)\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Reparo\"}}, \"Function\": 0}, \"Name\": \"Sum(Soldadores.% Reparo)\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Conclusao\"}}, \"Function\": 0}, \"Name\": \"Sum(Soldadores.% Conclusao)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Ranking de soldadores'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        }
+      ],
+      "config": "{}",
+      "displayOption": 1,
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "id": 5,
+      "name": "pagina6",
+      "displayName": "Materiais e Acabamento",
+      "filters": "[]",
+      "ordinal": 5,
+      "visualContainers": [
+        {
+          "x": 16,
+          "y": 16,
+          "z": 0,
+          "width": 624,
+          "height": 320,
+          "config": "{\"name\": \"p6_material\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 16, \"z\": 0, \"width\": 624, \"height\": 320, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"lineChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Meses.Mes\"}], \"Series\": [{\"queryRef\": \"Materiais.Material\"}], \"Y\": [{\"queryRef\": \"Medidas.Fabricado por Material (ton)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Meses\", \"Type\": 0}, {\"Name\": \"t1\", \"Entity\": \"Materiais\", \"Type\": 0}, {\"Name\": \"t2\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Mes\"}, \"Name\": \"Meses.Mes\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t1\"}}, \"Property\": \"Material\"}, \"Name\": \"Materiais.Material\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t2\"}}, \"Property\": \"Fabricado por Material (ton)\"}, \"Name\": \"Medidas.Fabricado por Material (ton)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Fabricado acumulado por material (ton)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 656,
+          "y": 16,
+          "z": 0,
+          "width": 608,
+          "height": 320,
+          "config": "{\"name\": \"p6_tempo\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 656, \"y\": 16, \"z\": 0, \"width\": 608, \"height\": 320, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"clusteredColumnChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Materiais.Material\"}], \"Series\": [{\"queryRef\": \"Tempo_Medio.Tipo\"}], \"Y\": [{\"queryRef\": \"Medidas.Dias Medios\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Materiais\", \"Type\": 0}, {\"Name\": \"t1\", \"Entity\": \"Tempo_Medio\", \"Type\": 0}, {\"Name\": \"t2\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Material\"}, \"Name\": \"Materiais.Material\"}, {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t1\"}}, \"Property\": \"Tipo\"}, \"Name\": \"Tempo_Medio.Tipo\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t2\"}}, \"Property\": \"Dias Medios\"}, \"Name\": \"Medidas.Dias Medios\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Tempo medio por material (dias)'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 16,
+          "y": 352,
+          "z": 0,
+          "width": 300,
+          "height": 100,
+          "config": "{\"name\": \"p6_card0\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 352, \"z\": 0, \"width\": 300, \"height\": 100, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.% Pintura\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Pintura\"}, \"Name\": \"Medidas.% Pintura\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'% Pintura'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 332,
+          "y": 352,
+          "z": 1,
+          "width": 300,
+          "height": 100,
+          "config": "{\"name\": \"p6_card1\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 332, \"y\": 352, \"z\": 1, \"width\": 300, \"height\": 100, \"tabOrder\": 1}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.% Isolamento\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Isolamento\"}, \"Name\": \"Medidas.% Isolamento\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'% Isolamento'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 648,
+          "y": 352,
+          "z": 2,
+          "width": 300,
+          "height": 100,
+          "config": "{\"name\": \"p6_card2\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 648, \"y\": 352, \"z\": 2, \"width\": 300, \"height\": 100, \"tabOrder\": 2}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.% Peso com STH\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Peso com STH\"}, \"Name\": \"Medidas.% Peso com STH\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'% Peso com STH'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 964,
+          "y": 352,
+          "z": 3,
+          "width": 300,
+          "height": 100,
+          "config": "{\"name\": \"p6_card3\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 964, \"y\": 352, \"z\": 3, \"width\": 300, \"height\": 100, \"tabOrder\": 3}}], \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Medidas.% Medio Avanco SOP\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Medidas\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Medio Avanco SOP\"}, \"Name\": \"Medidas.% Medio Avanco SOP\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'% Medio Avanco SOP'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 16,
+          "y": 468,
+          "z": 0,
+          "width": 1248,
+          "height": 236,
+          "config": "{\"name\": \"p6_linhas\", \"layouts\": [{\"id\": 0, \"position\": {\"x\": 16, \"y\": 468, \"z\": 0, \"width\": 1248, \"height\": 236, \"tabOrder\": 0}}], \"singleVisual\": {\"visualType\": \"tableEx\", \"projections\": {\"Values\": [{\"queryRef\": \"Ranking_Linhas.Linha\"}, {\"queryRef\": \"Sum(Ranking_Linhas.Spools)\"}, {\"queryRef\": \"Sum(Ranking_Linhas.Peso Total (ton))\"}, {\"queryRef\": \"Sum(Ranking_Linhas.Peso Liberado (ton))\"}, {\"queryRef\": \"Sum(Ranking_Linhas.% Liberado)\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"t0\", \"Entity\": \"Ranking_Linhas\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Linha\"}, \"Name\": \"Ranking_Linhas.Linha\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Spools\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_Linhas.Spools)\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso Total (ton)\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_Linhas.Peso Total (ton))\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"Peso Liberado (ton)\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_Linhas.Peso Liberado (ton))\"}, {\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"t0\"}}, \"Property\": \"% Liberado\"}}, \"Function\": 0}, \"Name\": \"Sum(Ranking_Linhas.% Liberado)\"}]}, \"drillFilterOtherVisuals\": true, \"objects\": {}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Linhas com maior peso'\"}}}, \"show\": {\"expr\": {\"Literal\": {\"Value\": \"true\"}}}}}]}}}",
+          "filters": "[]"
+        }
+      ],
+      "config": "{}",
+      "displayOption": 1,
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "config": "{\"version\": \"5.43\", \"activeSectionIndex\": 0, \"defaultDrillFilterOtherVisuals\": true, \"settings\": {\"useStylableVisualContainerHeader\": true}}",
+  "layoutOptimization": 0,
+  "publicCustomVisuals": [],
+  "pods": []
+}
