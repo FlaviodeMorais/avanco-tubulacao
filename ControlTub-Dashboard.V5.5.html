@@ -767,79 +767,46 @@ let filteredRows = [];
 let currentPage = 1;
 const PAGE_SIZE = 60;
 
-// ---------- Column headers expected in an uploaded "Dados" sheet (com variantes/aliases de versões anteriores) ----------
-const COL_ALIASES = {
-  iso: ['Isométrico'],
-  spool: ['Spool'],
-  linha: ['Linha'],
-  unid: ['Sistema'],
-  peso: ['Peso (kg)'],
-  sfab: ['Status Fabricação'],
-  smon: ['Status Montagem'],
-  sop: ['Pacote SOP'],
-  sth: ['Sistema STH'],
-  mat: ['Material'],
-};
-const STAGE_ALIASES = {
-  'Fabricado':          ['Data Liberado Montagem (Fabricado)'],
-  'Programado':         ['Data Programação Montagem (Programado)'],
-  'Pré-Montagem':       ['Data Pré Montagem'],
-  'Visual de Ajuste':   ['Data Ajuste Campo (Visual Ajuste)', 'Data Acoplamento (Visual Ajuste)'],
-  'Soldado':            ['Data Solda Campo (Soldado)', 'Data Soldagem (Soldado)'],
-  'Visual de Solda':    ['Data VS Campo (Visual Solda)', 'Data VS (Visual Solda)'],
-  'Liberado END':       ['Data Liberado Campo (Liberado END)', 'Data END (Liberado END)'],
-  'Teste Hidrostático': ['Data STH (Teste Hidrostático)'],
-};
-const STAGE_NAMES = Object.keys(STAGE_ALIASES);
+const STAGE_NAMES = ['Fabricado', 'Programado', 'Pré-Montagem', 'Visual de Ajuste', 'Soldado', 'Visual de Solda', 'Liberado END', 'Teste Hidrostático'];
 const MONTH_ABBR = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
-function normHeader(s){
-  return String(s ?? '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-    .trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-// Resolve cada chave interna (iso, peso, "Fabricado" etc.) para o nome de coluna real
-// presente na planilha, tolerando acentos/maiúsculas/variantes de versões anteriores.
-// required=false → chave é opcional, pode ficar ausente sem gerar erro (usado para sop/sth).
-function resolveHeaders(sampleKeys, aliasMap, requiredKeys){
-  const normToActual = new Map(sampleKeys.map(k => [normHeader(k), k]));
-  const resolved = {};
-  const missing = [];
-  for(const key in aliasMap){
-    let found = null;
-    for(const alias of aliasMap[key]){
-      const actual = normToActual.get(normHeader(alias));
-      if(actual !== undefined){ found = actual; break; }
-    }
-    if(found){ resolved[key] = found; }
-    else if(requiredKeys.includes(key)){ missing.push(aliasMap[key][0]); }
-  }
-  return { resolved, missing };
-}
-// Mapeamento das colunas do arquivo ORIGINAL do ControlTub (aba "SGS", cabeçalho na linha 9)
-const RAW_COLS = { iso: 'isometrico + - + spool', linha: 'linha', unid: 'unid', peso: 'peso', sfab: 'sger', smon: 'sgermon', sop: 'sop', sth: 'sth', mat: 'mat' };
-const RAW_STAGE_HEADER = {
-  'Fabricado': 'dtlibmon', 'Programado': 'dtprogmon', 'Pré-Montagem': 'dtpremon',
-  'Visual de Ajuste': 'ajucdat', 'Soldado': 'solcdat', 'Visual de Solda': 'vscdat',
-  'Liberado END': 'libcdat', 'Teste Hidrostático': 'sthdat',
+// ---------- Mapeamento das colunas do arquivo padronizado ON-SITE ControlTUB ----------
+// ("Situação Geral de Spools", aba "Mapa de Spools", cabeçalho na linha 6) — único
+// formato de upload de Spools aceito.
+const SPOOLS_COLS = {
+  iso: 'Isométrico', spool: 'Spool', linha: 'Linha', unid: 'Unidade', peso: 'Peso',
+  sfab: 'STATUS DE FABRICAÇÃO (SGER)', smon: 'STATUS DE MONTAGEM (SGERMON)',
+  sop: 'SOP', sth: 'STH', mat: 'Mat',
+  area: 'Area_m²', dipol: 'Ø', isolTipo: 'TIPO_ISOL',
+  dtPintura: 'Data_Pintura_Acab.', dtIsolamento: 'Data_Isol_term',
 };
-// Datas do lado "Situação de Fabricação" (fábrica, antes de ir a campo) — só existem
-// na aba original "SGS"; usadas para o Tempo Médio de Fabricação por Material
-// (corte -> liberado na fábrica), independente do fluxo de Montagem acima.
-const RAW_FAB_COLS = { corte: 'dtcort', liberado_fab: 'libdat' };
-// Colunas extras do arquivo original (aba "SGS") — opcionais: se ausentes, os
-// KPIs de Pintura/Isolamento/Spools AC ≤2" ficam zerados, mas nada quebra.
-// pintura/isolamento usam a mesma "area" (m²) já cadastrada por spool;
-// isol = código de especificação de isolamento ("NI" = Não Isolado, os
-// demais códigos — PP/CC/AE/FITA — indicam que o spool precisa de isolamento).
-const RAW_EXTRA_COLS = { area: 'area', dipol: 'dipol', pintura: 'pintacab', isolTipo: 'isol', isolData: 'isdat' };
+const SPOOLS_STAGE_HEADER = {
+  'Fabricado': 'Data_Lib_para_Montagem', 'Programado': 'Data_Prog_Montagem', 'Pré-Montagem': 'Data_Pré_Montagem',
+  'Visual de Ajuste': 'Data_VA_Mont', 'Soldado': 'Data_Soldagem_Mont', 'Visual de Solda': 'Data_VS_Mont',
+  'Liberado END': 'Data_Ends_Mont', 'Teste Hidrostático': 'Data_TH',
+};
+// Datas do lado "Situação de Fabricação" (fábrica, antes de ir a campo) — usadas só
+// para o Tempo Médio de Fabricação por Material (corte -> fim da fabricação),
+// independente do fluxo de Montagem acima.
+const SPOOLS_FAB_COLS = { corte: 'Data_Corte', liberado_fab: 'Data_End_Fab' };
 
-// Converte diâmetro em polegadas no formato da planilha ("2\"", "1.1/2\"", "3/4\"") pra número.
+// Status de montagem (SGERMON) sem código numérico — "não iniciado" é: o texto
+// literal, "aguardando programação" (fabricação pronta mas montagem nem foi
+// agendada) ou qualquer status "FAB - ..." (ainda preso na fabricação, logo a
+// montagem nem pôde começar). Confirmado com o time em 2026-08-23.
+function isMontagemNaoIniciada(smon){
+  if(!smon) return false;
+  if(smon === 'Não Iniciada A Montagem') return true;
+  if(smon === 'Aguardando Programação de Montagem') return true;
+  if(smon.startsWith('FAB -')) return true;
+  return false;
+}
+
+// Converte diâmetro em polegadas no formato da planilha ("2\"", "1 1/2\"", "1.1/2\"", "3/4\"") pra número.
 function parsePolegadas(s){
   if(!s) return null;
   const str = String(s).replace(/"/g,'').trim();
-  const misto = str.match(/^(\d+)\.(\d+)\/(\d+)$/); // "1.1/2" = 1 + 1/2
+  const misto = str.match(/^(\d+)[.\s](\d+)\/(\d+)$/); // "1.1/2" ou "1 1/2" = 1 + 1/2
   if(misto) return +misto[1] + (+misto[2] / +misto[3]);
   const fracao = str.match(/^(\d+)\/(\d+)$/); // "3/4"
   if(fracao) return +fracao[1] / +fracao[2];
@@ -946,7 +913,7 @@ function computeDashboardData(rows){
   });
 
   const total_spools = rows.length;
-  const naoIniciadosRows = rows.filter(r=>(r.smon||'').slice(0,2)==='36');
+  const naoIniciadosRows = rows.filter(r=>isMontagemNaoIniciada(r.smon));
   const nao_iniciados = naoIniciadosRows.length;
   const nao_iniciados_ton = +(naoIniciadosRows.reduce((a,r)=>a+r.peso,0)/1000).toFixed(3);
 
@@ -1018,7 +985,7 @@ function computeDashboardData(rows){
   const status_fab = [...new Set(rows.map(r=>r.sfab).filter(Boolean))].sort();
   const status_mon = [...new Set(rows.map(r=>r.smon).filter(Boolean))].sort();
 
-  const records = rows.map(r=>[r.iso, r.spool, r.linha, r.unid, +r.peso.toFixed(1), (r.sfab||'').slice(0,2), (r.smon||'').slice(0,2)]);
+  const records = rows.map(r=>[r.iso, r.spool, r.linha, r.unid, +r.peso.toFixed(1), r.sfab||'', r.smon||'']);
 
   // ---- Ranking de Linhas: agregado por linha (peso, spools, % avanço), nunca exibido antes ----
   const linhaMap = new Map();
@@ -1063,118 +1030,68 @@ function excelDateToJs(v){
     return new Date(d.y, d.m-1, d.d, d.H||0, d.M||0, d.S||0);
   }
   if(typeof v === 'string' && v.trim()){
+    // Datas às vezes vêm como texto "DD/MM/AAAA" (não serial do Excel) — o
+    // construtor nativo de Date interpretaria isso como MM/DD, dando data
+    // errada ou inválida sempre que o dia > 12.
+    const br = v.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(br){
+      const d = new Date(+br[3], +br[2]-1, +br[1]);
+      if(!isNaN(d)) return d;
+    }
     const d = new Date(v);
     if(!isNaN(d)) return d;
   }
   return null;
 }
 
-function splitIsoSpool(s){
-  s = String(s ?? '');
-  const idx = s.lastIndexOf('-');
-  if(idx<0) return [s, ''];
-  return [s.slice(0,idx), s.slice(idx+1)];
-}
-
 function parseWorkbookToRows(wb){
-  const dadosSheet = wb.SheetNames.find(n => n.trim().toLowerCase() === 'dados');
-  const sgsSheet   = wb.SheetNames.find(n => n.trim().toLowerCase() === 'sgs');
-
-  // ---- Caminho 1: arquivo original do ControlTub (aba "SGS") ----
-  // Prioridade sobre "Dados" porque o arquivo original tem multi-linha no topo.
-  if(sgsSheet){
-    const sheet = wb.Sheets[sgsSheet];
-    const json  = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true, range: 8 });
-    const rows  = json.filter(row => row[RAW_COLS.unid] && row[RAW_COLS.peso] != null);
-    if(!rows.length) throw new Error('Não foi possível localizar dados válidos na aba "SGS" (cabeçalho esperado na linha 9).');
-    const sampleKeys = Object.keys(rows[0]);
-    const missing      = Object.values(RAW_COLS).filter(h => !sampleKeys.includes(h));
-    const missingStages = Object.values(RAW_STAGE_HEADER).filter(h => !sampleKeys.includes(h));
-    if(missing.length || missingStages.length){
-      throw new Error(
-        'Estrutura do arquivo original não reconhecida — colunas ausentes: ' + [...missing, ...missingStages].join(', ') +
-        '\nColunas encontradas: ' + sampleKeys.slice(0,20).join(', ')
-      );
-    }
-    return rows.map(row=>{
-      const [iso, spool] = splitIsoSpool(row[RAW_COLS.iso]);
-      const stageDates = {};
-      STAGE_NAMES.forEach(s => { stageDates[s] = excelDateToJs(row[RAW_STAGE_HEADER[s]]); });
-      return {
-        iso, spool,
-        linha: String(row[RAW_COLS.linha] ?? ''),
-        unid:  String(row[RAW_COLS.unid]  ?? ''),
-        peso:  Number(row[RAW_COLS.peso])  || 0,
-        sfab:  row[RAW_COLS.sfab]  ? String(row[RAW_COLS.sfab])  : '',
-        smon:  row[RAW_COLS.smon]  ? String(row[RAW_COLS.smon])  : '',
-        sop:   row[RAW_COLS.sop]   ? String(row[RAW_COLS.sop])   : '',
-        sth:   row[RAW_COLS.sth]   ? String(row[RAW_COLS.sth])   : '',
-        mat:   row[RAW_COLS.mat]   ? String(row[RAW_COLS.mat])   : '',
-        stageDates,
-        fabDates: {
-          corte:        excelDateToJs(row[RAW_FAB_COLS.corte]),
-          liberado_fab: excelDateToJs(row[RAW_FAB_COLS.liberado_fab]),
-        },
-        area:      Number(row[RAW_EXTRA_COLS.area]) || 0,
-        dipol:     row[RAW_EXTRA_COLS.dipol] ? String(row[RAW_EXTRA_COLS.dipol]) : '',
-        dtPintura: excelDateToJs(row[RAW_EXTRA_COLS.pintura]),
-        isolTipo:  row[RAW_EXTRA_COLS.isolTipo] ? String(row[RAW_EXTRA_COLS.isolTipo]) : '',
-        dtIsolamento: excelDateToJs(row[RAW_EXTRA_COLS.isolData]),
-      };
-    });
+  const spoolsSheet = wb.SheetNames.find(n => n.trim().toLowerCase() === 'mapa de spools');
+  if(!spoolsSheet){
+    throw new Error(
+      'Arquivo não reconhecido. Envie o arquivo padronizado "ON-SITE ControlTUB — Situação Geral de Spools" (aba "Mapa de Spools").'
+    );
   }
 
-  // ---- Caminho 2: planilha dashboard exportada (aba "Dados") ----
-  if(dadosSheet){
-    const sheet = wb.Sheets[dadosSheet];
-    const json  = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true });
-    if(!json.length) throw new Error('A aba "Dados" está vazia.');
-    const sampleKeys = Object.keys(json[0]);
-
-    // Detecta leitura errada (arquivo com cabeçalho multi-linha sem range correto)
-    if(sampleKeys[0] === 'ControlTub 5.4' || sampleKeys.some(k => k === '__EMPTY')){
-      throw new Error('O arquivo parece ser o ControlTub original mas sem aba "SGS" reconhecida. Certifique-se de subir o arquivo original sem renomear abas, ou use a planilha ControlTub-Dashboard.xlsx gerada por este sistema.');
-    }
-
-    const cols   = resolveHeaders(sampleKeys, COL_ALIASES,   ['iso','spool','linha','unid','peso','sfab','smon']);
-    const stages = resolveHeaders(sampleKeys, STAGE_ALIASES, STAGE_NAMES);
-    const allMissing = [...cols.missing, ...stages.missing];
-    if(allMissing.length){
-      throw new Error(
-        'Colunas ausentes na aba "Dados": ' + allMissing.join(', ') +
-        '\nColunas encontradas: ' + sampleKeys.slice(0,30).join(', ')
-      );
-    }
-    const C = cols.resolved, S = stages.resolved;
-    return json.map(row=>{
-      const stageDates = {};
-      STAGE_NAMES.forEach(s => { stageDates[s] = excelDateToJs(row[S[s]]); });
-      return {
-        iso:   String(row[C.iso]   ?? ''),
-        spool: String(row[C.spool] ?? ''),
-        linha: String(row[C.linha] ?? ''),
-        unid:  String(row[C.unid]  ?? ''),
-        peso:  Number(row[C.peso]) || 0,
-        sfab:  row[C.sfab] ? String(row[C.sfab]) : '',
-        smon:  row[C.smon] ? String(row[C.smon]) : '',
-        sop:   C.sop && row[C.sop] ? String(row[C.sop]) : '',
-        sth:   C.sth && row[C.sth] ? String(row[C.sth]) : '',
-        mat:   C.mat && row[C.mat] ? String(row[C.mat]) : '',
-        stageDates,
-        fabDates: { corte: null, liberado_fab: null }, // aba "Dados" não traz o lado Fabricação (fábrica)
-        // aba "Dados" não traz área/diâmetro/pintura/isolamento — só o arquivo
-        // original (aba "SGS") tem essas colunas; KPIs de Pintura/Isolamento/
-        // Spools AC ≤2" ficam zerados quando os dados vêm por este caminho.
-        area: 0, dipol: '', dtPintura: null, isolTipo: '', dtIsolamento: null,
-      };
-    });
+  const sheet = wb.Sheets[spoolsSheet];
+  const json  = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true, range: 5 });
+  const rows  = json.filter(row => row[SPOOLS_COLS.unid] && row[SPOOLS_COLS.peso] != null);
+  if(!rows.length) throw new Error('Não foi possível localizar dados válidos na aba "Mapa de Spools" (cabeçalho esperado na linha 6).');
+  const sampleKeys = Object.keys(rows[0]);
+  const missing       = Object.values(SPOOLS_COLS).filter(h => !sampleKeys.includes(h));
+  const missingStages = Object.values(SPOOLS_STAGE_HEADER).filter(h => !sampleKeys.includes(h));
+  if(missing.length || missingStages.length){
+    throw new Error(
+      'Estrutura do arquivo não reconhecida — colunas ausentes: ' + [...missing, ...missingStages].join(', ') +
+      '\nColunas encontradas: ' + sampleKeys.slice(0,20).join(', ')
+    );
   }
 
-  throw new Error(
-    'Arquivo não reconhecido. Envie:\n' +
-    '• O arquivo original do ControlTub (aba "SGS"), ou\n' +
-    '• A planilha ControlTub-Dashboard.xlsx gerada por este sistema (aba "Dados").'
-  );
+  return rows.map(row=>{
+    const stageDates = {};
+    STAGE_NAMES.forEach(s => { stageDates[s] = excelDateToJs(row[SPOOLS_STAGE_HEADER[s]]); });
+    return {
+      iso:   String(row[SPOOLS_COLS.iso]   ?? ''),
+      spool: String(row[SPOOLS_COLS.spool] ?? ''),
+      linha: String(row[SPOOLS_COLS.linha] ?? ''),
+      unid:  String(row[SPOOLS_COLS.unid]  ?? ''),
+      peso:  Number(row[SPOOLS_COLS.peso]) || 0,
+      sfab:  row[SPOOLS_COLS.sfab] ? String(row[SPOOLS_COLS.sfab]) : '',
+      smon:  row[SPOOLS_COLS.smon] ? String(row[SPOOLS_COLS.smon]) : '',
+      sop:   row[SPOOLS_COLS.sop] ? String(row[SPOOLS_COLS.sop]) : '',
+      sth:   row[SPOOLS_COLS.sth] ? String(row[SPOOLS_COLS.sth]) : '',
+      mat:   row[SPOOLS_COLS.mat] ? String(row[SPOOLS_COLS.mat]) : '',
+      stageDates,
+      fabDates: {
+        corte:        excelDateToJs(row[SPOOLS_FAB_COLS.corte]),
+        liberado_fab: excelDateToJs(row[SPOOLS_FAB_COLS.liberado_fab]),
+      },
+      area:      Number(row[SPOOLS_COLS.area]) || 0,
+      dipol:     row[SPOOLS_COLS.dipol] ? String(row[SPOOLS_COLS.dipol]) : '',
+      dtPintura: excelDateToJs(row[SPOOLS_COLS.dtPintura]),
+      isolTipo:  row[SPOOLS_COLS.isolTipo] ? String(row[SPOOLS_COLS.isolTipo]) : '',
+      dtIsolamento: excelDateToJs(row[SPOOLS_COLS.dtIsolamento]),
+    };
+  });
 }
 
 function showUploadStatus(msg, ok, tipo){
@@ -1356,40 +1273,20 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
     const rawNames   = wb.SheetNames;
 
     // ---- Encontra a aba de dados (qualquer nome) ----
-    const dadosSheet  = rawNames.find(n => n.trim().toLowerCase() === 'dados');
-    const sgsSheet    = rawNames.find(n => n.trim().toLowerCase() === 'sgs');
-    const juntaSheet  = rawNames.find(n => n.trim().toLowerCase() === 'mapa_junta');
-
-    // ---- Detecta tipo pelo CONTEÚDO quando aba é SGS (pode ser spools ou juntas) ----
-    function sniffSGS(sheetName){
-      // Lê cabeçalhos na linha 9 (range:8) ou linha 8 (range:7)
-      const sheet = wb.Sheets[sheetName];
-      const j8 = XLSX.utils.sheet_to_json(sheet, {defval:null, raw:true, range:8, header:1});
-      const j7 = XLSX.utils.sheet_to_json(sheet, {defval:null, raw:true, range:7, header:1});
-      // Spools: tem 'isometrico + - + spool' na linha 9 (range:8 → row[0])
-      const row8keys = (j8[0]||[]).map(String);
-      if(row8keys.some(k=>k.includes('isometrico') && k.includes('spool'))) return 'spools';
-      // Juntas: tem 'junta' na linha 8 (range:7 → row[0])
-      const row7keys = (j7[0]||[]).map(String);
-      if(row7keys.includes('junta')) return 'juntas';
-      return 'unknown';
-    }
+    const spoolsSheet = rawNames.find(n => n.trim().toLowerCase() === 'mapa de spools');
+    const juntaSheet   = rawNames.find(n => n.trim().toLowerCase() === 'mapa_junta');
 
     let tipo = null;
     let activeSheet = null;
 
     if(juntaSheet){
       tipo = 'juntas'; activeSheet = juntaSheet;
-    } else if(dadosSheet){
-      tipo = 'spools'; activeSheet = dadosSheet;
-    } else if(sgsSheet){
-      const sniff = sniffSGS(sgsSheet);
-      tipo = sniff === 'juntas' ? 'juntas' : 'spools';
-      activeSheet = sgsSheet;
+    } else if(spoolsSheet){
+      tipo = 'spools'; activeSheet = spoolsSheet;
     } else {
       throw new Error(
         'Arquivo não reconhecido. Abas encontradas: ' + rawNames.join(', ') +
-        '\n\nArquivos aceitos:\n• Mapa de Spools — aba "SGS" ou "Dados"\n• Mapa de Juntas — aba "MAPA_JUNTA" ou "SGS"'
+        '\n\nArquivos aceitos:\n• Mapa de Spools — arquivo padrão ON-SITE ControlTUB (aba "Mapa de Spools")\n• Mapa de Juntas — aba "MAPA_JUNTA"'
       );
     }
 
@@ -1547,7 +1444,7 @@ function renderKPIs(){
   } else {
     const rows = detailRows.filter(r=>r[3]===currentUnidade);
     spoolCount = rows.length;
-    const paradas = rows.filter(r=>r[6]==='36');
+    const paradas = rows.filter(r=>isMontagemNaoIniciada(r[6]));
     naoIniciado = paradas.length;
     naoIniciadoTon = +(paradas.reduce((a,r)=>a+r[4],0)/1000).toFixed(3);
   }
@@ -2081,14 +1978,13 @@ function renderVelocidadeMontagem(){
 }
 
 // ---------- Detail table ----------
-function statusClass(code){
-  if(code==='37' || code==='45' || code==='52' || code==='53') return 'status-done';
-  if(code==='36' || code==='04' || code==='05' || code==='06') return 'status-pending';
-  if(code==='02') return 'status-blocked';
+function statusClass(status){
+  if(!status) return 'status-neutral';
+  if(status.includes('Liberado')) return 'status-done';
+  if(status === 'Não iniciado' || status === 'Não alocado' || status.startsWith('Não Iniciada') ||
+     status === 'Aguardando Programação de Montagem' || status.startsWith('FAB -')) return 'status-pending';
   return 'status-neutral';
 }
-let fabMap = {};
-let monMap = {};
 
 function applyDetailFilter(){
   const q = document.getElementById('searchInput').value.trim().toUpperCase();
@@ -2116,8 +2012,8 @@ function renderDetailTable(){
     return `<tr>
       <td>${escapeHtml(iso)}</td><td>${escapeHtml(spool)}</td><td>${escapeHtml(linha)}</td><td>${escapeHtml(unid)}</td>
       <td class="num">${fmtTon(peso)}</td>
-      <td><span class="status-pill ${statusClass(sfab)}">${escapeHtml(sfab)} · ${escapeHtml((fabMap[sfab]||'').split(' - ')[1]||'')}</span></td>
-      <td><span class="status-pill ${statusClass(smon)}">${escapeHtml(smon)} · ${escapeHtml((monMap[smon]||'').split(' - ').slice(1).join(' - ')||'')}</span></td>
+      <td><span class="status-pill ${statusClass(sfab)}">${escapeHtml(sfab)}</span></td>
+      <td><span class="status-pill ${statusClass(smon)}">${escapeHtml(smon)}</span></td>
     </tr>`;
   }).join('');
 
@@ -2177,12 +2073,9 @@ function initFromData(newData){
   statusMonSelect.innerHTML = '<option value="__ALL__">Status Montagem: todos</option>';
   DATA.status_mon.forEach(s=>{
     const opt = document.createElement('option');
-    opt.value = s.slice(0,2); opt.textContent = s;
+    opt.value = s; opt.textContent = s;
     statusMonSelect.appendChild(opt);
   });
-
-  fabMap = Object.fromEntries(DATA.status_fab.map(s=>[s.slice(0,2), s]));
-  monMap = Object.fromEntries(DATA.status_mon.map(s=>[s.slice(0,2), s]));
 
   detailRows = DATA.records.slice();
   document.getElementById('searchInput').value = '';
