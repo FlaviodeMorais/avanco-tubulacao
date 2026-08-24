@@ -578,7 +578,7 @@ main{
     <div class="panel-head">
       <div>
         <h2>Juntas de Soldagem <span class="mono-tag">MAPA DE JUNTAS</span></h2>
-        <p class="panel-sub">Visão geral de soldagem, END e reparos — 94.585 juntas cadastradas</p>
+        <p class="panel-sub">Visão geral de soldagem, END e reparos — <span id="juntasSectionTotal">—</span> juntas cadastradas</p>
       </div>
     </div>
 
@@ -1103,25 +1103,80 @@ function showUploadStatus(msg, ok, tipo){
 }
 
 // ============================================================
-// PARSER DO MAPA DE JUNTAS (aba MAPA_JUNTA, cabeçalho na linha 8)
+// PARSER DO MAPA DE JUNTAS PADRONIZADO ON-SITE ControlTUB
+// ("Situação Geral de Juntas", aba "MAPA DE JUNTAS", cabeçalho na linha 7)
 // ============================================================
-const RAW_JUNTAS_COL = {
-  unid:'unid', sth:'sth', iso:'isometrico', spool:'spool', junta:'junta', linha:'linha',
-  diam:'diam', pol:'pol', tipo:'tipo', asraiz:'asraiz', asench:'asench',
-  dtsold:'dtsold', dtsoldr1:'dtsoldr1', dtsoldr2:'dtsoldr2',
-  dt_lib_END:'dt_lib_END', dtVS:'dtVS', dtUS:'dtUS', RX_US:'RX_US',
+const JUNTAS_COLS = {
+  unid:'Unidade', sth:'STH', iso:'Isometrico', spool:'Spool', junta:'Junta', linha:'LINHA',
+  diam:'ØMM', pol:'Ø', mat:'Mat.',
+  asraiz:'Soldador \r\nRaiz', asench:'Soldador \r\nEnchimento',
+  dtsold:'Data_Solda', dtVS:'Data_Vs', dtUS:'Data_Rx/Us', RX_US:'RX ou US?',
+  statusRxUs:'STATUS', statusDU:'STATUS_1',
 };
 
 function parseJuntasWorkbook(wb){
-  const sheetName = wb.SheetNames.find(n => n.trim().toLowerCase() === 'mapa_junta');
-  if(!sheetName) throw new Error('Aba "MAPA_JUNTA" não encontrada. Envie o arquivo original do Mapa de Juntas.');
+  const sheetName = wb.SheetNames.find(n => n.trim().toLowerCase() === 'mapa de juntas');
+  if(!sheetName) throw new Error('Aba "MAPA DE JUNTAS" não encontrada. Envie o arquivo padronizado "ON-SITE ControlTUB — Situação Geral de Juntas".');
   const sheet = wb.Sheets[sheetName];
-  const json  = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true, range: 7 }); // row 8 = index 7
-  const rows  = json.filter(r => r[RAW_JUNTAS_COL.unid] && r[RAW_JUNTAS_COL.junta]);
-  if(!rows.length) throw new Error('Nenhuma junta válida encontrada na aba MAPA_JUNTA (cabeçalho esperado na linha 8).');
-  const sampleKeys = Object.keys(rows[0]);
-  const missing = Object.values(RAW_JUNTAS_COL).filter(h => !sampleKeys.includes(h));
-  if(missing.length) throw new Error('Colunas ausentes na aba MAPA_JUNTA: ' + missing.join(', ') + '\nColunas encontradas: ' + sampleKeys.slice(0,15).join(', '));
+  const json  = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true, range: 6 }); // row 7 = index 6
+  const raw   = json.filter(r => r[JUNTAS_COLS.unid] && r[JUNTAS_COLS.junta]);
+  if(!raw.length) throw new Error('Nenhuma junta válida encontrada na aba "MAPA DE JUNTAS" (cabeçalho esperado na linha 7).');
+  const sampleKeys = Object.keys(raw[0]);
+  const missing = Object.values(JUNTAS_COLS).filter(h => !sampleKeys.includes(h));
+  if(missing.length) throw new Error('Colunas ausentes na aba "MAPA DE JUNTAS": ' + missing.join(', ') + '\nColunas encontradas: ' + sampleKeys.slice(0,15).join(', '));
+
+  return raw.map(row=>({
+    unid:  String(row[JUNTAS_COLS.unid]  ?? ''),
+    sth:   row[JUNTAS_COLS.sth] ? String(row[JUNTAS_COLS.sth]) : '',
+    iso:   String(row[JUNTAS_COLS.iso]   ?? ''),
+    spool: String(row[JUNTAS_COLS.spool] ?? ''),
+    junta: String(row[JUNTAS_COLS.junta] ?? ''),
+    linha: row[JUNTAS_COLS.linha] ? String(row[JUNTAS_COLS.linha]) : '',
+    pol:   row[JUNTAS_COLS.pol] ? String(row[JUNTAS_COLS.pol]) : '',
+    mat:   row[JUNTAS_COLS.mat] ? String(row[JUNTAS_COLS.mat]) : '',
+    asraiz:  row[JUNTAS_COLS.asraiz] ? String(row[JUNTAS_COLS.asraiz]) : '',
+    dtsold:  excelDateToJs(row[JUNTAS_COLS.dtsold]),
+    dtVS:    excelDateToJs(row[JUNTAS_COLS.dtVS]),
+    dtUS:    excelDateToJs(row[JUNTAS_COLS.dtUS]),
+    RX_US:   row[JUNTAS_COLS.RX_US] ? String(row[JUNTAS_COLS.RX_US]) : '',
+    statusRxUs: row[JUNTAS_COLS.statusRxUs] ? String(row[JUNTAS_COLS.statusRxUs]) : '',
+    statusDU:   row[JUNTAS_COLS.statusDU]   ? String(row[JUNTAS_COLS.statusDU])   : '',
+    // Preenchidos por applyJuntasHistorico() a partir do histórico do arquivo antigo
+    // (o formato novo não registra reparo de solda nem a liberação final).
+    dtsoldr1: null, dtsoldr2: null, dt_lib_END: null,
+  }));
+}
+
+// ---------- Backfill do histórico (reparo de solda + liberação END) ----------
+// O arquivo padronizado novo não tem essas datas — vêm de um recorte fixo do
+// arquivo antigo (mesmas juntas, cruzadas por isométrico+spool+junta; conferido
+// manualmente: 100% de correspondência). É uma fotografia única, não vai ser
+// atualizada de novo — só serve pra não perder o que já tinha acontecido até ali.
+async function applyJuntasHistorico(rows){
+  let historico = {};
+  try{
+    const res = await fetch('juntas_historico.json', { cache: 'no-cache' });
+    if(res.ok) historico = await res.json();
+  }catch(e){
+    console.error('Falha ao carregar juntas_historico.json — seguindo sem o backfill histórico de reparo/liberação:', e);
+  }
+
+  rows.forEach(r=>{
+    const h = historico[`${r.iso}|${r.spool}|${r.junta}`];
+    if(h){
+      if(h[0]) r.dtsoldr1   = new Date(h[0]);
+      if(h[1]) r.dtsoldr2   = new Date(h[1]);
+      if(h[2]) r.dt_lib_END = new Date(h[2]);
+    }
+    // Regra de negócio: solda com reparo (histórico) OU reprovada no ensaio
+    // (RX/US ou Dureza) volta a contar como NÃO INICIADA — vai ser cortada e
+    // refeita do zero, então solda/visual/END já registrados não valem como
+    // progresso. Continua contando no Índice de Reparo (é retrabalho).
+    r.precisaRefazer = !!(r.dtsoldr1 || r.dtsoldr2 || r.statusRxUs === 'R' || r.statusDU === 'R');
+    if(r.precisaRefazer){
+      r.dtsold = null; r.dtVS = null; r.dtUS = null; r.dt_lib_END = null;
+    }
+  });
   return rows;
 }
 
@@ -1146,12 +1201,18 @@ function computeJuntasData(rows){
   const libend_n= dtlibend.filter(Boolean).length;
   const vsn     = rows.filter(r=>toDate(r.dtVS)).length;
   const endn    = dtUS.filter(Boolean).length;
-  const rep1    = dtsoldr1.filter(Boolean).length;
+  // Reparo = reparo de solda (histórico) OU reprovada no ensaio (RX/US ou
+  // Dureza) — ambos significam "vai ser cortada e refeita do zero" (ver
+  // applyJuntasHistorico). reparos2 fica só o histórico (2ª reprovação não
+  // tem equivalente no formato novo).
+  const rep1    = rows.filter(r=>r.precisaRefazer).length;
   const rep2    = dtsoldr2.filter(Boolean).length;
-  const rxn     = rows.filter(r=>r.RX_US==='R').length;
-  const usn     = rows.filter(r=>r.RX_US==='U').length;
-  const rxok    = rows.filter(r=>r.RX_US==='R' && toDate(r.dtUS)).length;
-  const usok    = rows.filter(r=>r.RX_US==='U' && toDate(r.dtUS)).length;
+  const isRX    = v => v==='R' || v==='RX';
+  const isUS    = v => v==='U' || v==='US';
+  const rxn     = rows.filter(r=>isRX(r.RX_US)).length;
+  const usn     = rows.filter(r=>isUS(r.RX_US)).length;
+  const rxok    = rows.filter(r=>isRX(r.RX_US) && toDate(r.dtUS)).length;
+  const usok    = rows.filter(r=>isUS(r.RX_US) && toDate(r.dtUS)).length;
 
   // curve
   const allDates=[...dtsold,...dtlibend].filter(Boolean);
@@ -1191,10 +1252,10 @@ function computeJuntasData(rows){
     const sol=r.asraiz; if(!sol) return;
     if(!sMap[sol]) sMap[sol]={soldador:sol,total:0,soldadas:0,reparos:0,reparos2:0,lib_end:0};
     sMap[sol].total++;
-    if(dtsold[i])   sMap[sol].soldadas++;
-    if(dtsoldr1[i]) sMap[sol].reparos++;
-    if(dtsoldr2[i]) sMap[sol].reparos2++;
-    if(dtlibend[i]) sMap[sol].lib_end++;
+    if(dtsold[i])      sMap[sol].soldadas++;
+    if(r.precisaRefazer) sMap[sol].reparos++;
+    if(dtsoldr2[i])    sMap[sol].reparos2++;
+    if(dtlibend[i])    sMap[sol].lib_end++;
   });
   const soldadores = Object.values(sMap)
     .map(s=>({...s, pct_reparo:+(s.reparos/Math.max(s.total,1)*100).toFixed(1), pct_conclusao:+(s.lib_end/Math.max(s.total,1)*100).toFixed(1)}))
@@ -1214,7 +1275,7 @@ function computeJuntasData(rows){
     const pol=r.pol; if(!pol) return;
     if(!dMap[pol]) dMap[pol]={pol,total:0,reparos:0};
     dMap[pol].total++;
-    if(dtsoldr1[i]) dMap[pol].reparos++;
+    if(r.precisaRefazer) dMap[pol].reparos++;
   });
   const reparos_por_diam = Object.values(dMap)
     .map(d=>({...d, pct:+(d.reparos/Math.max(d.total,1)*100).toFixed(1)}))
@@ -1274,32 +1335,24 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
 
     // ---- Encontra a aba de dados (qualquer nome) ----
     const spoolsSheet = rawNames.find(n => n.trim().toLowerCase() === 'mapa de spools');
-    const juntaSheet   = rawNames.find(n => n.trim().toLowerCase() === 'mapa_junta');
+    const juntaSheet   = rawNames.find(n => n.trim().toLowerCase() === 'mapa de juntas');
 
     let tipo = null;
-    let activeSheet = null;
 
     if(juntaSheet){
-      tipo = 'juntas'; activeSheet = juntaSheet;
+      tipo = 'juntas';
     } else if(spoolsSheet){
-      tipo = 'spools'; activeSheet = spoolsSheet;
+      tipo = 'spools';
     } else {
       throw new Error(
         'Arquivo não reconhecido. Abas encontradas: ' + rawNames.join(', ') +
-        '\n\nArquivos aceitos:\n• Mapa de Spools — arquivo padrão ON-SITE ControlTUB (aba "Mapa de Spools")\n• Mapa de Juntas — aba "MAPA_JUNTA"'
+        '\n\nArquivos aceitos:\n• Mapa de Spools — arquivo padrão ON-SITE ControlTUB (aba "Mapa de Spools")\n• Mapa de Juntas — arquivo padrão ON-SITE ControlTUB (aba "MAPA DE JUNTAS")'
       );
     }
 
     if(tipo === 'juntas'){
       // ---- MAPA DE JUNTAS ----
-      // Suporta aba MAPA_JUNTA (range:7) ou SGS (range:7, conteúdo de juntas)
-      const sheet = wb.Sheets[activeSheet];
-      const json  = XLSX.utils.sheet_to_json(sheet, {defval:null, raw:true, range:7});
-      const jRows = json.filter(r => r['unid'] && r['junta']);
-      if(!jRows.length) throw new Error(`Nenhuma junta válida encontrada na aba "${activeSheet}" (cabeçalho esperado na linha 8).`);
-      const sampleKeys = Object.keys(jRows[0]);
-      const missing = Object.values(RAW_JUNTAS_COL).filter(h => !sampleKeys.includes(h));
-      if(missing.length) throw new Error(`Colunas ausentes no Mapa de Juntas: ${missing.join(', ')}`);
+      const jRows = await applyJuntasHistorico(parseJuntasWorkbook(wb));
       const newJuntas = computeJuntasData(jRows);
       if(!newJuntas) throw new Error('Não foi possível calcular dados de juntas.');
       JUNTAS = newJuntas;
@@ -2111,6 +2164,8 @@ function fmtPct(v){ return String(v).replace('.',',') + '%'; }
 // ---- KPIs de Juntas ----
 function renderJuntasKPIs(){
   const k = JUNTAS.kpis;
+  const totalEl = document.getElementById('juntasSectionTotal');
+  if(totalEl) totalEl.textContent = fmtInt(k.total_juntas);
   const cards = [
     { label:'Total de Juntas',   value: fmtInt(k.total_juntas), unit:'un',  accent:'var(--azul)',       foot: 'Raiz + enchimento cadastradas' },
     { label:'Soldadas (Raiz)',    value: fmtPct(k.pct_soldadas), unit:'',    accent:STAGE_COLORS['Soldado'],      foot: fmtInt(k.soldadas) + ' juntas soldadas', footClass:'up' },
