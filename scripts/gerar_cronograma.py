@@ -228,6 +228,7 @@ def main(p6, xlsx, depara, dst):
         meses.append((d.year, d.month)); d = (d.replace(day=28) + timedelta(days=4)).replace(day=1)
 
     horas = {e: [0.0] * len(meses) for e in ETAPAS}   # peso (ton) por mês
+    horas_sop = defaultdict(lambda: {e: [0.0] * len(meses) for e in ETAPAS})  # idem, por pacote SOP
     resto = Counter(); casado = Counter(); sem_sth = Counter(); sem_atv = Counter()
     sem_sth_linhas = Counter(); sem_atv_sth = Counter()
     excluido = Counter(); total_ton = 0.0; spools_cancelados = set()
@@ -263,11 +264,18 @@ def main(p6, xlsx, depara, dst):
                 else:
                     continue
                 horas[etapa][i] += peso / dias
+                horas_sop[r[6] or '?'][etapa][i] += peso / dias
 
     json.dump({'regra': 'excluir linhas com -6100- e itens cancelados', 'spools_cancelados': sorted(spools_cancelados)},
               open('excluidos.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
     n_ac, t_ac = gera_ac_pequeno(spools, set(spools_cancelados), 'ac_pequeno.json')
     print('AC <= 2" zerados:', n_ac, 'spools', round(t_ac, 1), 'ton')
+    def _acum(v):
+        tot, acc, out = sum(v), 0.0, []
+        for x in v:
+            acc += x; out.append(round(acc / tot, 4))
+        return out
+
     plano, plano_ton = {}, {}
     for e, v in horas.items():
         tot = sum(v); acc = 0.0; pct = []; ton = []
@@ -281,6 +289,7 @@ def main(p6, xlsx, depara, dst):
         'peso': 'peso restante do CTB (ton) distribuído entre início e término da atividade do STH',
         'months': [f'{ABR[m-1]}/{str(y)[2:]}' for y, m in meses],
         'plano': plano, 'plano_ton': plano_ton,
+        'plano_sop': {sp: {e: _acum(v) for e, v in et.items() if sum(v) > 0} for sp, et in horas_sop.items()},
         'conferencia': {
             'restante_ton': {e: round(v, 1) for e, v in resto.items()},
             'casado_ton': {e: round(v, 1) for e, v in casado.items()},

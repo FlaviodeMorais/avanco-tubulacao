@@ -363,6 +363,8 @@ main{
 
 
   .summary-table .base-col{ background:#F3F1EC; font-weight:600; }
+  .summary-table th.base-col{ background:#006B35; color:#fff; }
+  .summary-table th.base-col small{ color:#E8F3EC; font-weight:400; }
   .summary-table .plan-row td{ color:#675C53; font-style:italic; font-size:.92em; }
   .summary-table .dev-neg{ color:#B3261E; font-weight:600; }
   .summary-table .dev-pos{ color:#008542; font-weight:600; }
@@ -740,7 +742,10 @@ main{
 <script>
 // Janela do projeto retomado. 'Base' = acumulado do último mês anterior ao início
 // (dados antigos do mesmo projeto); os meses do projeto partem desse nível.
-const PROJETO = { inicio: '2026-10-02', fim: '2027-10-20' };
+const PROJETO = { inicio: '2026-10-02', fim: '2027-10-20', mesBase: 'Ago/15' };
+// Etapas que não aparecem nos gráficos nem no Resumo Mensal desta versão
+const ETAPAS_OCULTAS = ['Programado', 'Visual de Ajuste', 'Liberado END'];
+const etapasVisiveis = () => DATA.stages.filter(st => !ETAPAS_OCULTAS.includes(st));
 let EXCLUIR_SPOOLS = new Set(); // excluidos.json — spools cancelados (iso|spool) (gerado por scripts/gerar_cronograma.py)
 // Escopo: ficam de fora as linhas da 6100 e tudo que estiver cancelado.
 function spoolExcluido(linha, sfab, smon, iso, spool){
@@ -1518,7 +1523,9 @@ function getProjetoView(comBase){
   const dataKeys = DATA.months.map(m=>{
     const i = MES_ABR.indexOf(m.slice(0,3)); return i<0 ? null : (2000+Number(m.slice(4)))*12+i;
   });
-  const baseIdx = dataKeys.reduce((acc,k,i)=> (k!==null && k < keys[0]) ? i : acc, -1);
+  // Último mês exibido do avanço anterior (PROJETO.mesBase); sem ele, o último antes do início do projeto
+  let baseIdx = DATA.months.indexOf(PROJETO.mesBase);
+  if(baseIdx < 0) baseIdx = dataKeys.reduce((acc,k,i)=> (k!==null && k < keys[0]) ? i : acc, -1);
   const series = {}, base = {};
   DATA.stages.forEach(st=>{
     const raw = curve.series[st];
@@ -1675,7 +1682,7 @@ function renderKPIsExtra(){
 function buildDatasets(){
   const curve = getCurve();
   const view = getProjetoView(true);
-  const stages = DATA.stages;
+  const stages = etapasVisiveis();
   const real = stages.map(stage=>{
     let data = view.series[stage];
     if(currentMode==='pct'){
@@ -1700,7 +1707,7 @@ function buildDatasets(){
 // Meta do P6: mesmas cores das etapas. Na Curva, preenchimento translúcido entre as curvas
 // (como o histórico); no Rundown, linhas tracejadas com pontos.
 function buildPlanDatasets(view, restante){
-  const ordem = DATA.stages.filter(st=>view.plan[st]).reverse(); // do menor (Teste) ao maior (Fabricado)
+  const ordem = etapasVisiveis().filter(st=>view.plan[st]).reverse(); // do menor (Teste) ao maior (Fabricado)
   return ordem.map((stage, k)=>({
     label: 'Meta P6 · ' + stage,
     data: view.plan[stage].map(v=>{
@@ -1780,7 +1787,7 @@ document.getElementById('modeToggle').addEventListener('click', e=>{
 function buildRundownDatasets(){
   const curve = getCurve();
   const view = getProjetoView(true);
-  const stages = DATA.stages;
+  const stages = etapasVisiveis();
   return stages.map(stage=>{
     const raw = view.series[stage];
     let data;
@@ -1859,7 +1866,7 @@ function renderRundownChart(){
 // ---------- Summary table ----------
 function renderSummaryTable(){
   const view = getProjetoView();
-  const stages = DATA.stages;
+  const stages = etapasVisiveis();
   const months = view.months;
   const [hy,hm] = [new Date().getFullYear(), new Date().getMonth()];
   const curIdx = months.indexOf(mesLabel(hy,hm));
@@ -1990,17 +1997,40 @@ function renderSopCurve(sopCode){
   if(selectedTr) selectedTr.classList.add('selected');
   if(tagEl) tagEl.textContent = sopCode;
 
-  const restante = curve.series['Fabricado'].map(v => +(curve.total - v).toFixed(3));
+  // Histórico até o último mês do avanço anterior (PROJETO.mesBase) + meses do novo cronograma
+  const pv = getProjetoView(false);
+  const n = Math.max(DATA.months.indexOf(PROJETO.mesBase) + 1, 0) || DATA.months.length;
+  const hist = curve.series['Fabricado'].slice(0, n);
+  const baseSop = hist[hist.length-1];
+  const hojeKey = new Date().getFullYear()*12 + new Date().getMonth();
+  const projReal = pv.months.map(m => {
+    const k = (2000+Number(m.slice(4)))*12 + MES_ABR.indexOf(m.slice(0,3));
+    return k <= hojeKey ? baseSop : null;
+  });
+  const labels = DATA.months.slice(0, n).concat(pv.months);
+  const real = hist.concat(projReal);
+  const restante = real.map(v => v===null ? null : +(curve.total - v).toFixed(3));
   const datasets = [
     { label:'Fabricado (restante)', data: restante, backgroundColor: STAGE_COLORS['Fabricado'],
       borderColor: STAGE_COLORS['Fabricado'], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
       pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 },
   ];
+  const pct = CRONO && CRONO.plano_sop && CRONO.plano_sop[sopCode] && CRONO.plano_sop[sopCode]['Fabricado'];
+  if(pct){
+    const meta = labels.map((m,i) => {
+      if(i === n-1) return +(curve.total - baseSop).toFixed(3);          // parte do último ponto do histórico
+      const j = i < n ? -1 : CRONO.months.indexOf(m);
+      return j < 0 ? null : +(curve.total - (baseSop + (curve.total - baseSop) * pct[j])).toFixed(3);
+    });
+    datasets.push({ label:'Meta P6 · Fabricado (restante)', data: meta, borderColor: STAGE_COLORS['Fabricado'],
+      backgroundColor:'transparent', borderDash:[6,4], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
+      pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 });
+  }
 
   if(chartSopCurve) chartSopCurve.destroy();
   chartSopCurve = new Chart(canvas.getContext('2d'), {
     type:'line',
-    data:{ labels: DATA.months, datasets },
+    data:{ labels, datasets },
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
