@@ -605,13 +605,13 @@ main{
     <!-- 2 colunas: Curva mensal + END por tipo -->
     <div class="grid-2">
       <div class="panel-inner">
-        <h3 class="panel-sub-title">Curva de Soldagem <span class="mono-tag">ACUMULADO</span></h3>
-        <p class="panel-sub">Juntas soldadas e liberadas por END — acumulado mensal</p>
+        <h3 class="panel-sub-title">Curva de Soldagem <span class="mono-tag">PREVISTO × REALIZADO</span></h3>
+        <p class="panel-sub">Juntas soldadas — acumulado mensal, Out/26 a Out/27 (previsto = cronograma P6)</p>
         <div class="chart-wrap-sm"><canvas id="curvaJuntasChart"></canvas></div>
       </div>
       <div class="panel-inner">
-        <h3 class="panel-sub-title">Reparos por Diâmetro <span class="mono-tag">% REPARO</span></h3>
-        <p class="panel-sub">Percentual de reparos (1ª reprovação) por classe de diâmetro</p>
+        <h3 class="panel-sub-title">Juntas a Soldar por Diâmetro <span class="mono-tag">A REALIZAR</span></h3>
+        <p class="panel-sub">Juntas ainda não soldadas por classe de diâmetro (e reparos já registrados)</p>
         <div class="chart-wrap-sm"><canvas id="reparosDiamChart"></canvas></div>
       </div>
     </div>
@@ -1224,6 +1224,10 @@ async function applyJuntasHistorico(rows){
     if(r.precisaRefazer){
       r.dtsold = null; r.dtVS = null; r.dtUS = null; r.dt_lib_END = null;
     }
+    // AC com Ø ≤ 2" reinicia (mesma regra dos spools): solda/END zerados, junta segue no escopo
+    if(!(window.AC_PEQUENO_ZERADO===false) && r.mat==='AC' && parsePolegadas(r.pol)!==null && parsePolegadas(r.pol)<=2){
+      r.dtsold = null; r.dtVS = null; r.dtUS = null; r.dt_lib_END = null;
+    }
   });
   return rows;
 }
@@ -1321,13 +1325,14 @@ function computeJuntasData(rows){
   const dMap={};
   rows.forEach((r,i)=>{
     const pol=r.pol; if(!pol) return;
-    if(!dMap[pol]) dMap[pol]={pol,total:0,reparos:0};
+    if(!dMap[pol]) dMap[pol]={pol,total:0,reparos:0,a_soldar:0};
     dMap[pol].total++;
+    if(!dtsold[i]) dMap[pol].a_soldar++;
     if(r.precisaRefazer) dMap[pol].reparos++;
   });
   const reparos_por_diam = Object.values(dMap)
     .map(d=>({...d, pct:+(d.reparos/Math.max(d.total,1)*100).toFixed(1)}))
-    .sort((a,b)=>b.reparos-a.reparos).slice(0,12);
+    .sort((a,b)=>b.a_soldar-a.a_soldar).slice(0,12);
 
   // ---- Tempo médio de Soldagem por Material: dias entre Solda (raiz) e Liberação END ----
   // só entram pares com as duas datas preenchidas e diferença >=0 (diferença negativa
@@ -1352,7 +1357,7 @@ function computeJuntasData(rows){
     kpis:{ total_juntas:total, soldadas:sold_n, lib_end:libend_n, com_vs:vsn, com_end_ensaio:endn,
            reparos1:rep1, reparos2:rep2, pct_soldadas:+(sold_n/total*100).toFixed(1),
            pct_lib_end:+(libend_n/total*100).toFixed(1), pct_reparo:+(rep1/Math.max(sold_n,1)*100).toFixed(1),
-           end_rx_total:rxn, end_us_total:usn, end_rx_ok:rxok, end_us_ok:usok },
+           a_soldar:total-sold_n, a_liberar:total-libend_n, end_rx_total:rxn, end_us_total:usn, end_rx_ok:rxok, end_us_ok:usok },
     soldadores, reparos_por_soldador, reparos2_por_soldador, reparos_por_diam, curve_months, curve_sold, curve_lib,
     materiais, curve_sold_material, tempo_medio_soldagem_material,
   };
@@ -2439,12 +2444,12 @@ function renderJuntasKPIs(){
   const totalEl = document.getElementById('juntasSectionTotal');
   if(totalEl) totalEl.textContent = fmtInt(k.total_juntas);
   const cards = [
-    { label:'Total de Juntas',   value: fmtInt(k.total_juntas), unit:'un',  accent:'var(--azul)',       foot: 'Raiz + enchimento cadastradas' },
+    { label:'Total de Juntas',   value: fmtInt(k.total_juntas), unit:'un',  accent:'var(--azul)',       foot: 'Escopo: sem 6100 e cancelados' },
     { label:'Soldadas (Raiz)',    value: fmtPct(k.pct_soldadas), unit:'',    accent:STAGE_COLORS['Soldado'],      foot: fmtInt(k.soldadas) + ' juntas soldadas', footClass:'up' },
-    { label:'Liberadas END',      value: fmtPct(k.pct_lib_end),  unit:'',    accent:STAGE_COLORS['Liberado END'], foot: fmtInt(k.lib_end) + ' juntas liberadas', footClass:'up' },
+    { label:'Liberadas END',      value: fmtPct(k.pct_lib_end),  unit:'',    accent:STAGE_COLORS['Liberado END'], foot: fmtInt(k.lib_end) + ' juntas liberadas · a liberar: ' + fmtInt(k.a_liberar ?? (k.total_juntas-k.lib_end)) },
+    { label:'A soldar (Out/26–Out/27)', value: fmtInt(k.a_soldar ?? (k.total_juntas-k.soldadas)), unit:'jts', accent:'var(--laranja)', foot: 'Previsto no P6: 100% até Out/27' },
     { label:'Índice de Reparo',   value: fmtPct(k.pct_reparo),   unit:'',    accent:'var(--laranja)',    foot: fmtInt(k.reparos1) + ' reparos (1ª) · ' + fmtInt(k.reparos2) + ' (2ª)' },
     { label:'END — RX previstos', value: fmtInt(k.end_rx_total), unit:'jts', accent:'var(--azul-escuro)',foot: fmtInt(k.end_rx_ok) + ' realizados (100%)' },
-    { label:'END — US previstos', value: fmtInt(k.end_us_total), unit:'jts', accent:'var(--azul-claro)', foot: fmtInt(k.end_us_ok) + ' realizados (100%)' },
   ];
   document.getElementById('juntasKpiRow').innerHTML = cards.map(c=>`
     <div class="kpi-card" style="--kpi-accent:${c.accent}">
@@ -2458,23 +2463,35 @@ function renderJuntasKPIs(){
 function renderCurvaJuntas(){
   const ctx = document.getElementById('curvaJuntasChart').getContext('2d');
   if(chartCurvaJuntas) chartCurvaJuntas.destroy();
+  const k = JUNTAS.kpis, total = k.total_juntas;
+  // Eixo: ponto de partida (situação atual das juntas) + meses do cronograma P6 (Out/26..Out/27)
+  const months = CRONO ? CRONO.months : [];
+  const labels = ['Atual'].concat(months);
+  const hoje = new Date(), hojeKey = hoje.getFullYear()*12+hoje.getMonth();
+  const keyOf = m => (2000+Number(m.slice(4)))*12 + MES_ABR.indexOf(m.slice(0,3));
+  const realizar = (serie, base) => [base].concat(months.map(m=>{
+    const ci = JUNTAS.curve_months.indexOf(m);
+    if(ci>=0 && keyOf(m) > keyOf(JUNTAS.curve_months[0]) && keyOf(m) >= 2026*12+9) return serie[ci];
+    return keyOf(m) <= hojeKey ? base : null;
+  }));
+  const prev = (st, base) => !CRONO || !CRONO.plano[st] ? null : [base].concat(months.map((m,i)=> +(base + (total-base)*CRONO.plano[st][i]).toFixed(0)));
+  const sets = [];
+  const prevSold = prev('Soldado', k.soldadas);
+  if(prevSold) sets.push({ label:'Soldadas — previsto (P6)', data: prevSold, borderColor:STAGE_COLORS['Soldado'], backgroundColor:'rgba(168,180,0,.10)',
+    borderWidth:2, borderDash:[6,4], pointRadius:3, fill:true, tension:.25 });
+  sets.push({ label:'Soldadas — realizado', data: realizar(JUNTAS.curve_sold, k.soldadas), borderColor:STAGE_COLORS['Soldado'], backgroundColor:'rgba(168,180,0,.30)',
+    borderWidth:2.5, pointRadius:4, fill:true, tension:.25, spanGaps:false });
+  sets.push({ label:'Liberadas END — realizado', data: realizar(JUNTAS.curve_lib, k.lib_end), borderColor:STAGE_COLORS['Liberado END'], backgroundColor:'rgba(0,133,66,.14)',
+    borderWidth:2, pointRadius:3, fill:false, tension:.25, spanGaps:false });
   chartCurvaJuntas = new Chart(ctx, {
     type:'line',
-    data:{
-      labels: JUNTAS.curve_months,
-      datasets:[
-        { label:'Soldadas', data: JUNTAS.curve_sold, borderColor:STAGE_COLORS['Soldado'], backgroundColor:'rgba(168,180,0,.14)',
-          borderWidth:2, pointRadius:0, pointHoverRadius:4, fill:true, tension:.25 },
-        { label:'Liberadas END', data: JUNTAS.curve_lib, borderColor:STAGE_COLORS['Liberado END'], backgroundColor:'rgba(0,133,66,.14)',
-          borderWidth:2, pointRadius:0, pointHoverRadius:4, fill:true, tension:.25 },
-      ]
-    },
+    data:{ labels, datasets: sets },
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
       scales:{
-        x:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10},maxTicksLimit:14,autoSkip:true,maxRotation:0} },
-        y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}},
+        x:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10},maxRotation:0} },
+        y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true, suggestedMax: total,
             title:{display:true,text:'Juntas (acumulado)',color:'#675C53',font:{family:'Trebuchet MS',size:10}} }
       },
       plugins:{
@@ -2483,7 +2500,7 @@ function renderCurvaJuntas(){
           backgroundColor:'#fff', borderColor:'#008542', borderWidth:1,
           titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
           titleFont:{family:'Trebuchet MS',size:11,weight:'bold'}, bodyFont:{family:'Trebuchet MS',size:11},
-          callbacks:{ label: i => `${i.dataset.label}: ${fmtInt(i.parsed.y)}` }
+          callbacks:{ label: i => i.parsed.y==null ? null : `${i.dataset.label}: ${fmtInt(i.parsed.y)}` }
         }
       }
     }
@@ -2500,7 +2517,7 @@ function renderReparosDiam(){
     data:{
       labels: data.map(d=>d.pol),
       datasets:[
-        { label:'% Reparo', data: data.map(d=>d.pct), backgroundColor:'#E17000', borderRadius:2, yAxisID:'y' },
+        { label:'A soldar (qtd)', data: data.map(d=>d.a_soldar ?? d.total), backgroundColor:'#E17000', borderRadius:2, yAxisID:'y' },
         { label:'Reparos (qtd)', data: data.map(d=>d.reparos), backgroundColor:'rgba(0,98,152,.15)',
           borderColor:'#006298', borderWidth:1, borderRadius:2, yAxisID:'y2', type:'bar' },
       ]
@@ -2510,8 +2527,8 @@ function renderReparosDiam(){
       interaction:{ mode:'index', intersect:false },
       scales:{
         x:{ grid:{display:false}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}} },
-        y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10},callback:v=>v+'%'},
-            title:{display:true,text:'% Reparo',color:'#675C53',font:{family:'Trebuchet MS',size:10}},
+        y:{ grid:{color:'#E4E2DD'}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}},
+            title:{display:true,text:'Juntas a soldar',color:'#675C53',font:{family:'Trebuchet MS',size:10}},
             position:'left', beginAtZero:true },
         y2:{ grid:{display:false}, ticks:{color:'#675C53',font:{family:'Trebuchet MS',size:10}},
              title:{display:true,text:'Qtd. Reparos',color:'#675C53',font:{family:'Trebuchet MS',size:10}},
