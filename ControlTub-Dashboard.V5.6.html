@@ -1599,14 +1599,13 @@ function getProjetoView(comBase){
   }
   const baseLabel = baseIdx>=0 ? DATA.months[baseIdx] : '—';
   if(comBase && baseIdx>=0){
-    // Gráficos: histórico do escopo antigo (até o último mês) + meses do projeto retomado.
-    // A meta sai do último ponto do histórico.
-    const n = baseIdx + 1;
+    // Gráficos: só o último mês do avanço anterior (PROJETO.mesBase) como ponto de partida,
+    // seguido dos meses do novo cronograma. A meta sai desse ponto.
     DATA.stages.forEach(st=>{
-      series[st] = curve.series[st].slice(0, n).concat(series[st]);
-      if(plan[st]) plan[st] = new Array(n-1).fill(null).concat([base[st]], plan[st]);
+      series[st] = [base[st]].concat(series[st]);
+      if(plan[st]) plan[st] = [base[st]].concat(plan[st]);
     });
-    return { months: DATA.months.slice(0, n).concat(months), series, base, plan, total: curve.total, baseLabel };
+    return { months: [baseLabel].concat(months), series, base, plan, total: curve.total, baseLabel };
   }
   return { months, series, base, plan, total: curve.total, baseLabel };
 }
@@ -2046,17 +2045,18 @@ function renderSopCurve(sopCode){
   if(selectedTr) selectedTr.classList.add('selected');
   if(tagEl) tagEl.textContent = sopCode;
 
-  // Histórico até o último mês do avanço anterior (PROJETO.mesBase) + meses do novo cronograma
+  // Último mês do avanço anterior (PROJETO.mesBase) + meses do novo cronograma
   const pv = getProjetoView(false);
-  const n = Math.max(DATA.months.indexOf(PROJETO.mesBase) + 1, 0) || DATA.months.length;
-  const hist = curve.series['Fabricado'].slice(0, n);
+  const idxBase = DATA.months.indexOf(PROJETO.mesBase) >= 0 ? DATA.months.indexOf(PROJETO.mesBase) : DATA.months.length - 1;
+  const n = 1;
+  const hist = [curve.series['Fabricado'][idxBase]];
   const baseSop = hist[hist.length-1];
   const hojeKey = new Date().getFullYear()*12 + new Date().getMonth();
   const projReal = pv.months.map(m => {
     const k = (2000+Number(m.slice(4)))*12 + MES_ABR.indexOf(m.slice(0,3));
     return k <= hojeKey ? baseSop : null;
   });
-  const labels = DATA.months.slice(0, n).concat(pv.months);
+  const labels = [DATA.months[idxBase]].concat(pv.months);
   const real = hist.concat(projReal);
   const restante = real.map(v => v===null ? null : +(curve.total - v).toFixed(3));
   const datasets = [
