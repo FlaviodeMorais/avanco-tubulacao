@@ -415,6 +415,8 @@ main{
   .summary-table .dev-neg{ color:#B3261E; font-weight:600; }
   .summary-table .dev-pos{ color:#008542; font-weight:600; }
   .summary-table .future-col{ color:#B5ADA3; }
+  /* Nesta versão (V5.6) ficam ocultos: Status END, Velocidade de Fabricação/Montagem e tabela de Spools */
+  [data-oculto]{ display:none !important; }
 </style>
 </head>
 <body>
@@ -493,7 +495,7 @@ main{
     </div>
   </section>
 
-  <section class="panel">
+  <section class="panel" hidden data-oculto="v5.6">
     <div class="panel-head">
       <div>
         <h2>Status END <span class="mono-tag">RX / US</span></h2>
@@ -523,7 +525,7 @@ main{
     </div>
   </section>
 
-  <section class="panel detail-panel">
+  <section class="panel detail-panel" hidden data-oculto="v5.6">
     <div class="panel-head">
       <div>
         <h2>Spools <span class="mono-tag" id="detailCount">—</span></h2>
@@ -550,7 +552,7 @@ main{
     <div class="pagination" id="pagination"></div>
   </section>
 
-  <div class="grid-2">
+  <div class="grid-2" hidden data-oculto="v5.6">
     <section class="panel">
       <div class="panel-head">
         <div>
