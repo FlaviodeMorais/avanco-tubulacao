@@ -72,32 +72,68 @@ MES_IDX = {a: i for i, a in enumerate(['Jan','Fev','Mar','Abr','Mai','Jun','Jul'
 
 
 def gera_ac_pequeno(spools, excluidos_keys, dst, data_json='data.json'):
-    """ac_pequeno.json: o que sai da Base publicada (data.json) ao zerar os AC <= 2\"."""
+    """ac_pequeno.json: ajustes sobre a Base publicada (data.json).
+
+    - AC <= 2": avanço de fabricação/montagem zerado (spool segue no escopo, FAB - Não iniciado)
+    - linhas 6100 e cancelados: saem do escopo (peso, nº de STH/SOP/linhas) e do avanço
+    Datas lidas da planilha CTB (aproximado até novo upload ON-SITE).
+    """
     d = json.load(open(data_json, encoding='utf-8'))
     unid = {(a[0], a[1]): a[3] for a in d['records']}
     ends = []
     for m in d['months']:
         y, mo = 2000 + int(m[4:]), MES_IDX[m[:3]]
         ends.append(datetime(y + (mo == 11), (mo + 1) % 12 + 1, 1) - timedelta(seconds=1))
-    serie = defaultdict(lambda: defaultdict(lambda: [0.0] * len(ends)))
-    chaves, ton = [], 0.0
+    n = len(ends)
+    vazio = lambda: defaultdict(lambda: [0.0] * n)
+    baixa_u = defaultdict(vazio)      # unidade -> etapa -> toneladas a tirar por mês
+    baixa_s = defaultdict(vazio)      # SOP -> etapa -> idem
+    chaves, ton_ac = [], 0.0
+    sop = defaultdict(lambda: {'linhas': set(), 'sths': set(), 'spools': 0, 'excl_ton': 0.0,
+                               'baixa_fab': 0.0, 'baixa_lib': 0.0})
+    sths, sops = set(), set()
     for r in spools:
         k = f'{r[0]}|{r[1]}'
-        if not ac_pequeno(r) or k in excluidos_keys or excluir(r[2], r[8], r[9], None):
-            continue
-        chaves.append(k); ton += float(r[4] or 0)
-        for etapa, col in COL_ETAPA.items():
-            dt_ = r[col]
-            if isinstance(dt_, datetime):
-                for i, fim in enumerate(ends):
-                    if dt_ <= fim:
-                        serie[unid.get((r[0], r[1]), '?')][etapa][i] += float(r[4] or 0)
-    out = {'regra': 'AC com diametro ate 2" -> avanco de fabricacao e montagem zerado; status FAB - Nao iniciado',
-           'aproximado': 'datas lidas da planilha CTB (pode divergir do ON-SITE ate novo upload)',
-           'months': d['months'], 'ton': round(ton, 3), 'spools': chaves,
-           'baixa_ton': {u: {e: [round(x, 3) for x in v] for e, v in et.items()} for u, et in serie.items()}}
+        peso = float(r[4] or 0)
+        fora = k in excluidos_keys or bool(excluir(r[2], r[8], r[9], None))
+        pequeno = ac_pequeno(r) and not fora
+        so = r[6] or '?'
+        reg = sop[so]
+        if fora:
+            reg['excl_ton'] += peso
+        else:
+            reg['linhas'].add(r[2]); reg['spools'] += 1
+            if r[7]:
+                reg['sths'].add(r[7]); sths.add(r[7])
+            sops.add(so)
+        if pequeno:
+            chaves.append(k); ton_ac += peso
+        if fora or pequeno:               # avanço sai da Base
+            for etapa, col in COL_ETAPA.items():
+                dt_ = r[col]
+                if isinstance(dt_, datetime):
+                    for i, fim in enumerate(ends):
+                        if dt_ <= fim:
+                            baixa_u[unid.get((r[0], r[1]), '?')][etapa][i] += peso
+                            baixa_s[so][etapa][i] += peso
+            if isinstance(r[COL_ETAPA['Fabricado']], datetime):
+                reg['baixa_fab'] += peso
+            if isinstance(r[COL_ETAPA['Liberado END']], datetime):
+                reg['baixa_lib'] += peso
+    arred = lambda bx: {u: {e: [round(x, 3) for x in v] for e, v in et.items()} for u, et in bx.items()}
+    out = {
+        'regra': 'AC <= 2" zerado (FAB - Nao iniciado); linhas 6100 e cancelados fora do escopo',
+        'aproximado': 'datas lidas da planilha CTB (pode divergir do ON-SITE ate novo upload)',
+        'months': d['months'], 'ton': round(ton_ac, 3), 'spools': chaves,
+        'baixa_ton': arred(baixa_u), 'baixa_sop': arred(baixa_s),
+        'sth_total_n': len(sths), 'sop_total_n': len(sops),
+        'sop': {k: {'linhas': len(v['linhas']), 'sths': len(v['sths']), 'spools': v['spools'],
+                    'excl_ton': round(v['excl_ton'], 3),
+                    'baixa_fab': round(v['baixa_fab'], 3), 'baixa_lib': round(v['baixa_lib'], 3)}
+                for k, v in sop.items()},
+    }
     json.dump(out, open(dst, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    return len(chaves), ton
+    return len(chaves), ton_ac
 
 
 def le_depara(path):

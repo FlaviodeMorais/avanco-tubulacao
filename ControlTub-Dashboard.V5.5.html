@@ -2317,6 +2317,26 @@ function aplicarAcPequeno(d){
     });
   });
   subtrai(d.overall, soma);
+  // Pacotes SOP: tira avanço/peso das linhas fora do escopo e dos AC <= 2", recontando linhas, STH e spools
+  const infoSop = AC_PEQUENO.sop || {};
+  Object.keys(AC_PEQUENO.baixa_sop || {}).forEach(sp => { if(d.by_sop && d.by_sop[sp]) subtrai(d.by_sop[sp], AC_PEQUENO.baixa_sop[sp]); });
+  d.sop_ranking = d.sop_ranking.filter(r => infoSop[r.sop] && infoSop[r.sop].spools > 0).map(r => {
+    const i = infoSop[r.sop];
+    const total = +Math.max(0, r.peso_total - i.excl_ton).toFixed(3);
+    const fab = +Math.max(0, r.peso_fabricado - i.baixa_fab).toFixed(3);
+    const lib = +Math.max(0, r.peso_liberado - i.baixa_lib).toFixed(3);
+    if(d.by_sop && d.by_sop[r.sop]) d.by_sop[r.sop].total = total;
+    return { ...r, linhas: i.linhas, sths: i.sths, spools: i.spools, peso_total: total, peso_fabricado: fab, peso_liberado: lib,
+             pct_fabricado: total>0 ? +(fab/total*100).toFixed(1) : 0, pct_liberado: total>0 ? +(lib/total*100).toFixed(1) : 0 };
+  });
+  if(d.by_sop) Object.keys(d.by_sop).forEach(sp => { if(!d.sop_ranking.some(r => r.sop === sp)) delete d.by_sop[sp]; });
+  d.linhas_ranking = (d.linhas_ranking || []).filter(r => !String(r.linha).includes('-6100-'));
+  const nSop = d.sop_ranking.length;
+  d.kpis.sop_total_n = nSop;
+  d.kpis.sth_total_n = AC_PEQUENO.sth_total_n;
+  d.kpis.sop_avg_pct = nSop ? +(d.sop_ranking.reduce((a,r)=>a+r.pct_liberado,0)/nSop).toFixed(1) : 0;
+  d.kpis.sop_completos = d.sop_ranking.filter(r => r.pct_liberado >= 99.999).length;
+  d.kpis.sop_prontos_ton = +d.sop_ranking.reduce((a,r)=>a+r.peso_liberado,0).toFixed(3);
   let n = 0, ton = 0;
   d.records.forEach(r => {
     if(!chaves.has(r[0] + '|' + r[1])) return;
@@ -2325,7 +2345,7 @@ function aplicarAcPequeno(d){
   });
   d.kpis.nao_iniciados += n;
   d.kpis.nao_iniciados_ton = +(d.kpis.nao_iniciados_ton + ton).toFixed(3);
-  d.kpis.spoolsAc2_realizado_ton = 0; d.kpis.spoolsAc2_pct = 0;
+  d.kpis.spoolsAc2_previsto_ton = AC_PEQUENO.ton; d.kpis.spoolsAc2_realizado_ton = 0; d.kpis.spoolsAc2_pct = 0;
   ['Não iniciado'].forEach(x => { if(!d.status_fab.includes(x)) d.status_fab.push(x); });
   if(!d.status_mon.includes('FAB - Não iniciado')) d.status_mon.push('FAB - Não iniciado');
   d.ac_pequeno_zerado = true;
