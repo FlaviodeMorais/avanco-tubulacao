@@ -1672,7 +1672,7 @@ function buildDatasets(){
       backgroundColor: STAGE_COLORS[stage] + 'CC',
       borderColor: STAGE_COLORS[stage],
       borderWidth: 1.5,
-      pointRadius: 0,
+      pointRadius: data.filter(v=>v!==null).length < 3 ? 4 : 0, // poucos meses realizados: mostra o ponto
       pointHoverRadius: 4,
       fill: stage === 'Fabricado' ? 'origin' : '-1',
       tension: 0.25,
