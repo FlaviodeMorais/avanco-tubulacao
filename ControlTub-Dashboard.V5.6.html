@@ -1553,7 +1553,7 @@ function mesLabel(y,m){ return MES_ABR[m]+'/'+String(y).slice(2); }
 
 // Visão do projeto: eixo Out/26..Ago/27, curva partindo da Base. Se o upload já trouxer
 // o mês (cumulativo), usa o valor real; mês corrente sem dado = Base; mês futuro = vazio.
-function getProjetoView(){
+function getProjetoView(comBase){
   const curve = getCurve();
   const [iy,im] = PROJETO.inicio.split('-').map(Number);
   const [fy,fm] = PROJETO.fim.split('-').map(Number);
@@ -1586,7 +1586,17 @@ function getProjetoView(){
       });
     });
   }
-  return { months, series, base, plan, total: curve.total, baseLabel: baseIdx>=0 ? DATA.months[baseIdx] : '—' };
+  const baseLabel = baseIdx>=0 ? DATA.months[baseIdx] : '—';
+  if(comBase){
+    // Gráficos: primeiro ponto = último mês do avanço anterior (escopo antigo), de onde parte a meta
+    const pre = a => [a];
+    DATA.stages.forEach(st=>{
+      series[st] = pre(base[st]).concat(series[st]);
+      if(plan[st]) plan[st] = pre(base[st]).concat(plan[st]);
+    });
+    return { months: [baseLabel + ' (anterior)'].concat(months), series, base, plan, total: curve.total, baseLabel };
+  }
+  return { months, series, base, plan, total: curve.total, baseLabel };
 }
 
 function getCurve(){
@@ -1708,7 +1718,7 @@ function renderKPIsExtra(){
 // ---------- Chart ----------
 function buildDatasets(){
   const curve = getCurve();
-  const view = getProjetoView();
+  const view = getProjetoView(true);
   const stages = DATA.stages;
   const real = stages.map(stage=>{
     let data = view.series[stage];
@@ -1752,7 +1762,7 @@ function renderChart(){
   if(chart){ chart.destroy(); }
   chart = new Chart(ctx, {
     type:'line',
-    data:{ labels: getProjetoView().months, datasets },
+    data:{ labels: getProjetoView(true).months, datasets },
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
@@ -1807,7 +1817,7 @@ document.getElementById('modeToggle').addEventListener('click', e=>{
 // caindo até zero em vez de subir até o total. Mesmo curve/mode/filtro de sistema. ----------
 function buildRundownDatasets(){
   const curve = getCurve();
-  const view = getProjetoView();
+  const view = getProjetoView(true);
   const stages = DATA.stages;
   return stages.map(stage=>{
     const raw = view.series[stage];
@@ -1843,7 +1853,7 @@ function renderRundownChart(){
   if(chartRundown){ chartRundown.destroy(); }
   chartRundown = new Chart(ctx, {
     type:'line',
-    data:{ labels: getProjetoView().months, datasets },
+    data:{ labels: getProjetoView(true).months, datasets },
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
@@ -1894,7 +1904,7 @@ function renderSummaryTable(){
   const cell = (v,i,cls='') => `<td class="${cls}${i===curIdx?' latest-col':''}${v===null?' future-col':''}">${v===null?'—':fmtTon(v)}</td>`;
 
   if(tabelaModo==='pxr') return renderSummaryPxR(view, months, curIdx, cell);
-  let thead = '<thead><tr><th>Etapa</th><th class="base-col">Base<br><small>acum. até '+view.baseLabel+'</small></th>' +
+  let thead = '<thead><tr><th>Etapa</th><th class="base-col">Base · escopo antigo<br><small>último mês: '+view.baseLabel+'</small></th>' +
     months.map((m,i)=>`<th${i===curIdx?' class="latest-col"':''}>${m}</th>`).join('') + '</tr></thead>';
   let rows = stages.map(stage=>{
     const dot = `<span class="dot" style="background:${STAGE_COLORS[stage]}; margin-right:7px; vertical-align:1px;"></span>`;
