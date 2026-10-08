@@ -595,7 +595,7 @@ main{
     <div class="panel-head">
       <div>
         <h2>Juntas de Soldagem <span class="mono-tag">MAPA DE JUNTAS</span></h2>
-        <p class="panel-sub">Visão geral de soldagem, END e reparos — <span id="juntasSectionTotal">—</span> juntas cadastradas</p>
+        <p class="panel-sub">Juntas a realizar de Out/26 a Out/27 — <span id="juntasSectionTotal">—</span> juntas a realizar</p>
       </div>
     </div>
 
@@ -606,12 +606,12 @@ main{
     <div class="grid-2">
       <div class="panel-inner">
         <h3 class="panel-sub-title">Curva de Soldagem <span class="mono-tag">PREVISTO × REALIZADO</span></h3>
-        <p class="panel-sub">Juntas soldadas — acumulado mensal, Out/26 a Out/27 (previsto = cronograma P6)</p>
+        <p class="panel-sub">Juntas a realizar — acumulado mensal, Out/26 a Out/27 (previsto = cronograma P6)</p>
         <div class="chart-wrap-sm"><canvas id="curvaJuntasChart"></canvas></div>
       </div>
       <div class="panel-inner">
         <h3 class="panel-sub-title">Juntas a Soldar por Diâmetro <span class="mono-tag">A REALIZAR</span></h3>
-        <p class="panel-sub">Juntas ainda não soldadas por classe de diâmetro (e reparos já registrados)</p>
+        <p class="panel-sub">Juntas a soldar por classe de diâmetro</p>
         <div class="chart-wrap-sm"><canvas id="reparosDiamChart"></canvas></div>
       </div>
     </div>
@@ -1239,6 +1239,7 @@ function toDate(v){
   const d=new Date(v); return isNaN(d)?null:d;
 }
 
+const NOVO_INICIO = new Date(2026,9,1); // início do novo cronograma (Out/26): antes disso é o escopo antigo
 function computeJuntasData(rows){
   const MONTH_ABBR=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   // date arrays
@@ -1357,7 +1358,9 @@ function computeJuntasData(rows){
     kpis:{ total_juntas:total, soldadas:sold_n, lib_end:libend_n, com_vs:vsn, com_end_ensaio:endn,
            reparos1:rep1, reparos2:rep2, pct_soldadas:+(sold_n/total*100).toFixed(1),
            pct_lib_end:+(libend_n/total*100).toFixed(1), pct_reparo:+(rep1/Math.max(sold_n,1)*100).toFixed(1),
-           a_soldar:total-sold_n, a_liberar:total-libend_n, end_rx_total:rxn, end_us_total:usn, end_rx_ok:rxok, end_us_ok:usok },
+           a_soldar:total-sold_n, a_liberar:total-libend_n,
+           sold_base: dtsold.filter(d=>d&&d<NOVO_INICIO).length, lib_base: dtlibend.filter(d=>d&&d<NOVO_INICIO).length,
+           a_rx: rows.filter((r,i)=>isRX(r.RX_US) && !dtsold[i]).length, a_us: rows.filter((r,i)=>isUS(r.RX_US) && !dtsold[i]).length, end_rx_total:rxn, end_us_total:usn, end_rx_ok:rxok, end_us_ok:usok },
     soldadores, reparos_por_soldador, reparos2_por_soldador, reparos_por_diam, curve_months, curve_sold, curve_lib,
     materiais, curve_sold_material, tempo_medio_soldagem_material,
   };
@@ -2442,14 +2445,16 @@ function fmtPct(v){ return String(v).replace('.',',') + '%'; }
 function renderJuntasKPIs(){
   const k = JUNTAS.kpis;
   const totalEl = document.getElementById('juntasSectionTotal');
-  if(totalEl) totalEl.textContent = fmtInt(k.total_juntas);
+  if(totalEl) totalEl.textContent = fmtInt(k.a_soldar ?? k.total_juntas);
+  const novoSold = Math.max(0, k.soldadas - (k.sold_base ?? k.soldadas));
+  const novoEnd  = Math.max(0, k.lib_end  - (k.lib_base  ?? k.lib_end));
+  const aReal = k.a_soldar ?? (k.total_juntas-k.soldadas);
   const cards = [
-    { label:'Total de Juntas',   value: fmtInt(k.total_juntas), unit:'un',  accent:'var(--azul)',       foot: 'Escopo: sem 6100 e cancelados' },
-    { label:'Soldadas (Raiz)',    value: fmtPct(k.pct_soldadas), unit:'',    accent:STAGE_COLORS['Soldado'],      foot: fmtInt(k.soldadas) + ' juntas soldadas', footClass:'up' },
-    { label:'Liberadas END',      value: fmtPct(k.pct_lib_end),  unit:'',    accent:STAGE_COLORS['Liberado END'], foot: fmtInt(k.lib_end) + ' juntas liberadas · a liberar: ' + fmtInt(k.a_liberar ?? (k.total_juntas-k.lib_end)) },
-    { label:'A soldar (Out/26–Out/27)', value: fmtInt(k.a_soldar ?? (k.total_juntas-k.soldadas)), unit:'jts', accent:'var(--laranja)', foot: 'Previsto no P6: 100% até Out/27' },
-    { label:'Índice de Reparo',   value: fmtPct(k.pct_reparo),   unit:'',    accent:'var(--laranja)',    foot: fmtInt(k.reparos1) + ' reparos (1ª) · ' + fmtInt(k.reparos2) + ' (2ª)' },
-    { label:'END — RX previstos', value: fmtInt(k.end_rx_total), unit:'jts', accent:'var(--azul-escuro)',foot: fmtInt(k.end_rx_ok) + ' realizados (100%)' },
+    { label:'Juntas a realizar',  value: fmtInt(aReal), unit:'jts', accent:'var(--azul)', foot: 'Out/26 a Out/27 · de ' + fmtInt(k.total_juntas) + ' no escopo (sem 6100 e cancelados)' },
+    { label:'Soldadas (Raiz)',    value: fmtPct(aReal? novoSold/aReal*100 : 0), unit:'', accent:STAGE_COLORS['Soldado'], foot: fmtInt(novoSold) + ' soldadas · ' + fmtInt(aReal-novoSold) + ' a soldar', footClass:'up' },
+    { label:'Liberadas END',      value: fmtPct(aReal? novoEnd/aReal*100 : 0),  unit:'', accent:STAGE_COLORS['Liberado END'], foot: fmtInt(novoEnd) + ' liberadas · ' + fmtInt(aReal-novoEnd) + ' a liberar' },
+    { label:'END — RX previstos', value: fmtInt(k.a_rx ?? 0), unit:'jts', accent:'var(--azul-escuro)', foot: '0 realizados (a realizar)' },
+    { label:'END — US previstos', value: fmtInt(k.a_us ?? 0), unit:'jts', accent:'var(--azul-claro)', foot: '0 realizados (a realizar)' },
   ];
   document.getElementById('juntasKpiRow').innerHTML = cards.map(c=>`
     <div class="kpi-card" style="--kpi-accent:${c.accent}">
@@ -2463,25 +2468,26 @@ function renderJuntasKPIs(){
 function renderCurvaJuntas(){
   const ctx = document.getElementById('curvaJuntasChart').getContext('2d');
   if(chartCurvaJuntas) chartCurvaJuntas.destroy();
-  const k = JUNTAS.kpis, total = k.total_juntas;
+  const k = JUNTAS.kpis, total = k.a_soldar ?? k.total_juntas; // escopo = juntas a realizar; parte do zero em Out/26
+  const sBase = k.sold_base ?? k.soldadas, lBase = k.lib_base ?? k.lib_end;
   // Eixo: ponto de partida (situação atual das juntas) + meses do cronograma P6 (Out/26..Out/27)
   const months = CRONO ? CRONO.months : [];
   const labels = ['Atual'].concat(months);
   const hoje = new Date(), hojeKey = hoje.getFullYear()*12+hoje.getMonth();
   const keyOf = m => (2000+Number(m.slice(4)))*12 + MES_ABR.indexOf(m.slice(0,3));
-  const realizar = (serie, base) => [base].concat(months.map(m=>{
+  const realizar = (serie, base) => [0].concat(months.map(m=>{
     const ci = JUNTAS.curve_months.indexOf(m);
-    if(ci>=0 && keyOf(m) > keyOf(JUNTAS.curve_months[0]) && keyOf(m) >= 2026*12+9) return serie[ci];
-    return keyOf(m) <= hojeKey ? base : null;
+    if(ci>=0 && keyOf(m) >= 2026*12+9) return Math.max(0, serie[ci]-base);
+    return keyOf(m) <= hojeKey ? 0 : null;
   }));
-  const prev = (st, base) => !CRONO || !CRONO.plano[st] ? null : [base].concat(months.map((m,i)=> +(base + (total-base)*CRONO.plano[st][i]).toFixed(0)));
+  const prev = (st) => !CRONO || !CRONO.plano[st] ? null : [0].concat(months.map((m,i)=> Math.round(total*CRONO.plano[st][i])));
   const sets = [];
-  const prevSold = prev('Soldado', k.soldadas);
+  const prevSold = prev('Soldado');
   if(prevSold) sets.push({ label:'Soldadas — previsto (P6)', data: prevSold, borderColor:STAGE_COLORS['Soldado'], backgroundColor:'rgba(168,180,0,.10)',
     borderWidth:2, borderDash:[6,4], pointRadius:3, fill:true, tension:.25 });
-  sets.push({ label:'Soldadas — realizado', data: realizar(JUNTAS.curve_sold, k.soldadas), borderColor:STAGE_COLORS['Soldado'], backgroundColor:'rgba(168,180,0,.30)',
+  sets.push({ label:'Soldadas — realizado', data: realizar(JUNTAS.curve_sold, sBase), borderColor:STAGE_COLORS['Soldado'], backgroundColor:'rgba(168,180,0,.30)',
     borderWidth:2.5, pointRadius:4, fill:true, tension:.25, spanGaps:false });
-  sets.push({ label:'Liberadas END — realizado', data: realizar(JUNTAS.curve_lib, k.lib_end), borderColor:STAGE_COLORS['Liberado END'], backgroundColor:'rgba(0,133,66,.14)',
+  sets.push({ label:'Liberadas END — realizado', data: realizar(JUNTAS.curve_lib, lBase), borderColor:STAGE_COLORS['Liberado END'], backgroundColor:'rgba(0,133,66,.14)',
     borderWidth:2, pointRadius:3, fill:false, tension:.25, spanGaps:false });
   chartCurvaJuntas = new Chart(ctx, {
     type:'line',
@@ -2518,8 +2524,6 @@ function renderReparosDiam(){
       labels: data.map(d=>d.pol),
       datasets:[
         { label:'A soldar (qtd)', data: data.map(d=>d.a_soldar ?? d.total), backgroundColor:'#E17000', borderRadius:2, yAxisID:'y' },
-        { label:'Reparos (qtd)', data: data.map(d=>d.reparos), backgroundColor:'rgba(0,98,152,.15)',
-          borderColor:'#006298', borderWidth:1, borderRadius:2, yAxisID:'y2', type:'bar' },
       ]
     },
     options:{
