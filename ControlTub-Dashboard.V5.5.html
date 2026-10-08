@@ -362,6 +362,9 @@ main{
 }
 
 
+  .summary-table .base-col{ background:#F3F1EC; font-weight:600; }
+  .summary-table .plan-row td{ color:#675C53; font-style:italic; font-size:.92em; }
+  .summary-table .future-col{ color:#B5ADA3; }
 </style>
 </head>
 <body>
@@ -454,11 +457,15 @@ main{
     <div class="panel-head">
       <div>
         <h2>Resumo Mensal <span class="mono-tag">ACUMULADO</span></h2>
-        <p class="panel-sub">Peso acumulado (ton) por etapa e mês de referência</p>
+        <p class="panel-sub">Peso acumulado (ton) por etapa — parte da Base (acumulado do projeto anterior) e acompanha a meta do cronograma P6 (Out/26 a Ago/27). Meta = Base + (escopo − Base) × % planejado.</p>
       </div>
+      <button class="mode-btn" id="histToggle" type="button"></button>
     </div>
     <div class="summary-scroll">
       <table class="summary-table" id="summaryTable"></table>
+    </div>
+    <div class="summary-scroll">
+      <table class="summary-table" id="summaryHist" hidden></table>
     </div>
   </section>
 
@@ -723,6 +730,11 @@ main{
 </main>
 
 <script>
+// Janela do projeto retomado. 'Base' = acumulado do último mês anterior ao início
+// (dados antigos do mesmo projeto); os meses do projeto partem desse nível.
+const PROJETO = { inicio: '2026-10-02', fim: '2027-08-26' };
+let CRONO = null; // cronograma.json (meta mensal do Primavera P6) — ver scripts/gerar_cronograma.py
+let showHistorico = false;
 let DATA = null; // populado via fetch("data.json") ou localStorage — ver boot()
 // ---------- Setup ----------
 // Paleta oficial Petrobras (Manual de Identidade Visual, itens 3.2/3.3)
@@ -1460,6 +1472,47 @@ function escapeHtml(s){
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+const MES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function mesLabel(y,m){ return MES_ABR[m]+'/'+String(y).slice(2); }
+
+// Visão do projeto: eixo Out/26..Ago/27, curva partindo da Base. Se o upload já trouxer
+// o mês (cumulativo), usa o valor real; mês corrente sem dado = Base; mês futuro = vazio.
+function getProjetoView(){
+  const curve = getCurve();
+  const [iy,im] = PROJETO.inicio.split('-').map(Number);
+  const [fy,fm] = PROJETO.fim.split('-').map(Number);
+  const hoje = new Date(), hojeKey = hoje.getFullYear()*12+hoje.getMonth();
+  const months = [], keys = [];
+  for(let k=iy*12+(im-1); k<=fy*12+(fm-1); k++){ keys.push(k); months.push(mesLabel(Math.floor(k/12), k%12)); }
+  const dataKeys = DATA.months.map(m=>{
+    const i = MES_ABR.indexOf(m.slice(0,3)); return i<0 ? null : (2000+Number(m.slice(4)))*12+i;
+  });
+  const baseIdx = dataKeys.reduce((acc,k,i)=> (k!==null && k < keys[0]) ? i : acc, -1);
+  const series = {}, base = {};
+  DATA.stages.forEach(st=>{
+    const raw = curve.series[st];
+    base[st] = baseIdx>=0 ? raw[baseIdx] : 0;
+    let last = base[st];
+    series[st] = keys.map(k=>{
+      const di = dataKeys.indexOf(k);
+      if(di>=0){ last = raw[di]; return last; }
+      return k <= hojeKey ? last : null;
+    });
+  });
+  // Meta (P6): Base + (escopo − Base) × % planejado acumulado
+  const plan = {};
+  if(CRONO){
+    Object.keys(CRONO.plano).forEach(st=>{
+      if(!DATA.stages.includes(st)) return;
+      plan[st] = months.map(m=>{
+        const i = CRONO.months.indexOf(m);
+        return i<0 ? null : +(base[st] + (curve.total-base[st])*CRONO.plano[st][i]).toFixed(3);
+      });
+    });
+  }
+  return { months, series, base, plan, total: curve.total, baseLabel: baseIdx>=0 ? DATA.months[baseIdx] : '—' };
+}
+
 function getCurve(){
   return currentUnidade === '__ALL__' ? DATA.overall : DATA.by_unidade[currentUnidade];
 }
@@ -1478,6 +1531,7 @@ unidadeSelect.addEventListener('change', e=>{
   applyDetailFilter();
 });
 statusMonSelect.addEventListener('change', applyDetailFilter);
+document.getElementById('histToggle').addEventListener('click', ()=>{ showHistorico = !showHistorico; renderSummaryTable(); });
 
 // ---------- KPIs ----------
 function renderKPIs(){
@@ -1572,11 +1626,12 @@ function renderKPIsExtra(){
 // ---------- Chart ----------
 function buildDatasets(){
   const curve = getCurve();
+  const view = getProjetoView();
   const stages = DATA.stages;
-  return stages.map(stage=>{
-    let data = curve.series[stage];
+  const real = stages.map(stage=>{
+    let data = view.series[stage];
     if(currentMode==='pct'){
-      data = data.map(v => curve.total>0 ? +(v/curve.total*100).toFixed(2) : 0);
+      data = data.map(v => v===null ? null : (curve.total>0 ? +(v/curve.total*100).toFixed(2) : 0));
     }
     return {
       label: stage,
@@ -1590,6 +1645,21 @@ function buildDatasets(){
       tension: 0.25,
     };
   }).reverse();
+  return real.concat(buildPlanDatasets(view, false));
+}
+
+// Linhas tracejadas da meta (P6), uma por etapa mapeada
+function buildPlanDatasets(view, restante){
+  return Object.keys(view.plan).map(stage=>({
+    label: 'Meta P6 · ' + stage,
+    data: view.plan[stage].map(v=>{
+      if(v===null) return null;
+      const x = restante ? view.total - v : v;
+      return currentMode==='pct' ? +(x/view.total*100).toFixed(2) : +x.toFixed(3);
+    }),
+    borderColor: STAGE_COLORS[stage], backgroundColor: 'transparent',
+    borderDash:[6,4], borderWidth:1.5, pointRadius:0, pointHoverRadius:3, fill:false, tension:0.25,
+  }));
 }
 
 function renderChart(){
@@ -1600,7 +1670,7 @@ function renderChart(){
   if(chart){ chart.destroy(); }
   chart = new Chart(ctx, {
     type:'line',
-    data:{ labels: DATA.months, datasets },
+    data:{ labels: getProjetoView().months, datasets },
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
@@ -1655,14 +1725,15 @@ document.getElementById('modeToggle').addEventListener('click', e=>{
 // caindo até zero em vez de subir até o total. Mesmo curve/mode/filtro de sistema. ----------
 function buildRundownDatasets(){
   const curve = getCurve();
+  const view = getProjetoView();
   const stages = DATA.stages;
   return stages.map(stage=>{
-    const raw = curve.series[stage];
+    const raw = view.series[stage];
     let data;
     if(currentMode==='pct'){
-      data = raw.map(v => curve.total>0 ? +(100 - v/curve.total*100).toFixed(2) : 0);
+      data = raw.map(v => v===null ? null : (curve.total>0 ? +(100 - v/curve.total*100).toFixed(2) : 0));
     } else {
-      data = raw.map(v => +(curve.total - v).toFixed(3));
+      data = raw.map(v => v===null ? null : +(curve.total - v).toFixed(3));
     }
     return {
       label: stage,
@@ -1676,7 +1747,7 @@ function buildRundownDatasets(){
       fill: false,
       tension: 0.25,
     };
-  });
+  }).concat(buildPlanDatasets(view, true));
 }
 
 let chartRundown = null;
@@ -1690,7 +1761,7 @@ function renderRundownChart(){
   if(chartRundown){ chartRundown.destroy(); }
   chartRundown = new Chart(ctx, {
     type:'line',
-    data:{ labels: DATA.months, datasets },
+    data:{ labels: getProjetoView().months, datasets },
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
@@ -1733,20 +1804,38 @@ function renderRundownChart(){
 
 // ---------- Summary table ----------
 function renderSummaryTable(){
-  const curve = getCurve();
+  const view = getProjetoView();
   const stages = DATA.stages;
-  const months = DATA.months;
-  const lastIdx = months.length - 1;
+  const months = view.months;
+  const [hy,hm] = [new Date().getFullYear(), new Date().getMonth()];
+  const curIdx = months.indexOf(mesLabel(hy,hm));
+  const cell = (v,i,cls='') => `<td class="${cls}${i===curIdx?' latest-col':''}${v===null?' future-col':''}">${v===null?'—':fmtTon(v)}</td>`;
 
-  let thead = '<thead><tr><th>Etapa</th>' + months.map((m,i)=>`<th${i===lastIdx?' class="latest-col"':''}>${m}</th>`).join('') + '</tr></thead>';
+  let thead = '<thead><tr><th>Etapa</th><th class="base-col">Base<br><small>acum. até '+view.baseLabel+'</small></th>' +
+    months.map((m,i)=>`<th${i===curIdx?' class="latest-col"':''}>${m}</th>`).join('') + '</tr></thead>';
   let rows = stages.map(stage=>{
-    const vals = curve.series[stage];
     const dot = `<span class="dot" style="background:${STAGE_COLORS[stage]}; margin-right:7px; vertical-align:1px;"></span>`;
-    return '<tr><td>'+dot+stage+'</td>' + vals.map((v,i)=>`<td${i===lastIdx?' class="latest-col"':''}>${fmtTon(v)}</td>`).join('') + '</tr>';
+    let tr = '<tr><td>'+dot+stage+'</td><td class="base-col">'+fmtTon(view.base[stage])+'</td>' +
+      view.series[stage].map((v,i)=>cell(v,i)).join('') + '</tr>';
+    if(view.plan[stage]){
+      tr += '<tr class="plan-row"><td>&nbsp;&nbsp;↳ Meta P6</td><td class="base-col"></td>' +
+        view.plan[stage].map((v,i)=>cell(v,i)).join('') + '</tr>';
+    }
+    return tr;
   }).join('');
-  const totalRow = '<tr><td class="total-row">Total Escopo</td>' + months.map((m,i)=>`<td class="total-row${i===lastIdx?' latest-col':''}">${fmtTon(curve.total)}</td>`).join('') + '</tr>';
-
+  const totalRow = '<tr><td class="total-row">Total Escopo</td><td class="total-row base-col">'+fmtTon(view.total)+'</td>' +
+    months.map((m,i)=>`<td class="total-row${i===curIdx?' latest-col':''}">${fmtTon(view.total)}</td>`).join('') + '</tr>';
   document.getElementById('summaryTable').innerHTML = thead + '<tbody>' + rows + totalRow + '</tbody>';
+
+  // Histórico antigo (recolhido por padrão)
+  const curve = getCurve();
+  const hist = document.getElementById('summaryHist');
+  hist.hidden = !showHistorico;
+  if(showHistorico){
+    hist.innerHTML = '<thead><tr><th>Etapa</th>' + DATA.months.map(m=>`<th>${m}</th>`).join('') + '</tr></thead><tbody>' +
+      stages.map(st=>'<tr><td>'+st+'</td>'+curve.series[st].map(v=>`<td>${fmtTon(v)}</td>`).join('')+'</tr>').join('') + '</tbody>';
+  }
+  document.getElementById('histToggle').textContent = showHistorico ? 'Ocultar histórico' : 'Ver histórico ('+DATA.months[0]+' a '+DATA.months[DATA.months.length-1]+')';
 }
 
 // ---------- Avanço por SOP (linhas, spools, peso e % Fabricado/Liberado por pacote) ----------
@@ -2423,6 +2512,9 @@ async function boot(){
     dataErr = err; console.error('Falha ao carregar data.json:', err);
     if(_savedData){ DATA = _savedData; dataFromCache = true; }
   }
+
+  try { CRONO = await fetchJson('cronograma.json'); }
+  catch(err){ console.warn('cronograma.json indisponível — meta P6 não exibida:', err); }
 
   try { JUNTAS = await fetchJson('juntas.json'); }
   catch(err){
