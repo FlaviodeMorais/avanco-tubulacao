@@ -1166,7 +1166,9 @@ function parseJuntasWorkbook(wb){
   const missing = Object.values(JUNTAS_COLS).filter(h => !sampleKeys.includes(h));
   if(missing.length) throw new Error('Colunas ausentes na aba "MAPA DE JUNTAS": ' + missing.join(', ') + '\nColunas encontradas: ' + sampleKeys.slice(0,15).join(', '));
 
-  return raw.map(row=>({
+  // Mesmo escopo dos spools: sem linhas da 6100 e cancelados
+  const fora = row => spoolExcluido(row[JUNTAS_COLS.linha], '', '', String(row[JUNTAS_COLS.iso] ?? ''), String(row[JUNTAS_COLS.spool] ?? ''));
+  return raw.filter(row => !fora(row)).map(row=>({
     unid:  String(row[JUNTAS_COLS.unid]  ?? ''),
     sth:   row[JUNTAS_COLS.sth] ? String(row[JUNTAS_COLS.sth]) : '',
     iso:   String(row[JUNTAS_COLS.iso]   ?? ''),

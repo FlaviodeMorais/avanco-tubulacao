@@ -166,13 +166,55 @@ def le_p6(path):
     return atv
 
 
+ONSITE_ETAPAS = {  # coluna da planilha ON-SITE -> posição no formato interno (igual a Dados_Spools)
+    10: 'Data_Corte', 11: 'Data_End_Fab', 12: 'Data_Lib_para_Montagem', 13: 'Data_Prog_Montagem',
+    14: 'Data_Pré_Montagem', 15: 'Data_VA_Mont', 16: 'Data_Soldagem_Mont', 17: 'Data_VS_Mont',
+    18: 'Data_Ends_Mont', 19: 'Data_TH',
+}
+
+
+def polegadas(s):
+    s = str(s or '').replace('"', '').strip()
+    m = re.match(r'^(\d+)[.\s](\d+)/(\d+)$', s)
+    if m:
+        return int(m[1]) + int(m[2]) / int(m[3])
+    m = re.match(r'^(\d+)/(\d+)$', s)
+    if m:
+        return int(m[1]) / int(m[2])
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
 def le_spools(path):
+    """Linhas no formato interno (posições iguais a Dados_Spools). Aceita a planilha ON-SITE
+    ('Mapa de Spools', cabeçalho na linha 6) ou a antiga de fórmulas ('Dados_Spools')."""
     wb = openpyxl.load_workbook(path, read_only=True)
     out = []
-    for r in wb['Dados_Spools'].iter_rows(min_row=2, values_only=True):
-        if not r[0]:
+    if 'Dados_Spools' in wb.sheetnames:
+        for r in wb['Dados_Spools'].iter_rows(min_row=2, values_only=True):
+            if r[0]:
+                out.append(r)
+        return out
+    nome = next(n for n in wb.sheetnames if n.strip().lower() == 'mapa de spools')
+    it = wb[nome].iter_rows(min_row=6, values_only=True)
+    cab = [str(c or '').strip() for c in next(it)]
+    ix = {c: i for i, c in enumerate(cab)}
+    for r in it:
+        if not r[ix['Unidade']] or r[ix['Peso']] is None:
             continue
-        out.append(r)
+        linha = [None] * 24
+        linha[0], linha[1], linha[2] = r[ix['Isométrico']], r[ix['Spool']], r[ix['Linha']]
+        linha[3] = r[ix['Unidade']]
+        linha[4] = float(r[ix['Peso']] or 0) / 1000          # kg -> ton
+        linha[5], linha[6], linha[7] = r[ix['Mat']], r[ix['SOP']], r[ix['STH']]
+        linha[8] = r[ix['STATUS DE FABRICAÇÃO (SGER)']]
+        linha[9] = r[ix['STATUS DE MONTAGEM (SGERMON)']]
+        for pos, col in ONSITE_ETAPAS.items():
+            linha[pos] = r[ix[col]] if col in ix else None
+        linha[23] = polegadas(r[ix['Ø']])
+        out.append(tuple(linha))
     return out
 
 
