@@ -1538,14 +1538,15 @@ function getProjetoView(comBase){
     });
   }
   const baseLabel = baseIdx>=0 ? DATA.months[baseIdx] : '—';
-  if(comBase){
-    // Gráficos: primeiro ponto = último mês do avanço anterior (escopo antigo), de onde parte a meta
-    const pre = a => [a];
+  if(comBase && baseIdx>=0){
+    // Gráficos: histórico do escopo antigo (até o último mês) + meses do projeto retomado.
+    // A meta sai do último ponto do histórico.
+    const n = baseIdx + 1;
     DATA.stages.forEach(st=>{
-      series[st] = pre(base[st]).concat(series[st]);
-      if(plan[st]) plan[st] = pre(base[st]).concat(plan[st]);
+      series[st] = curve.series[st].slice(0, n).concat(series[st]);
+      if(plan[st]) plan[st] = new Array(n-1).fill(null).concat([base[st]], plan[st]);
     });
-    return { months: [baseLabel + ' (anterior)'].concat(months), series, base, plan, total: curve.total, baseLabel };
+    return { months: DATA.months.slice(0, n).concat(months), series, base, plan, total: curve.total, baseLabel };
   }
   return { months, series, base, plan, total: curve.total, baseLabel };
 }
@@ -1682,7 +1683,7 @@ function buildDatasets(){
       backgroundColor: STAGE_COLORS[stage] + 'CC',
       borderColor: STAGE_COLORS[stage],
       borderWidth: 1.5,
-      pointRadius: data.filter(v=>v!==null).length < 3 ? 4 : 0, // poucos meses realizados: mostra o ponto
+      pointRadius: 0,
       pointHoverRadius: 4,
       fill: stage === 'Fabricado' ? 'origin' : '-1',
       tension: 0.25,
@@ -1692,16 +1693,22 @@ function buildDatasets(){
 }
 
 // Linhas tracejadas da meta (P6), uma por etapa mapeada
+// Meta do P6: mesmas cores das etapas. Na Curva, preenchimento translúcido entre as curvas
+// (como o histórico); no Rundown, linhas tracejadas com pontos.
 function buildPlanDatasets(view, restante){
-  return Object.keys(view.plan).map(stage=>({
+  const ordem = DATA.stages.filter(st=>view.plan[st]).reverse(); // do menor (Teste) ao maior (Fabricado)
+  return ordem.map((stage, k)=>({
     label: 'Meta P6 · ' + stage,
     data: view.plan[stage].map(v=>{
       if(v===null) return null;
       const x = restante ? view.total - v : v;
       return currentMode==='pct' ? +(x/view.total*100).toFixed(2) : +x.toFixed(3);
     }),
-    borderColor: STAGE_COLORS[stage], backgroundColor: 'transparent',
-    borderDash:[6,4], borderWidth:1.5, pointRadius:0, pointHoverRadius:3, fill:false, tension:0.25,
+    borderColor: STAGE_COLORS[stage],
+    backgroundColor: STAGE_COLORS[stage] + (restante ? '00' : '55'),
+    borderDash:[6,4], borderWidth:1.5,
+    pointRadius: restante ? 3 : 0, pointHoverRadius:5, pointBackgroundColor: STAGE_COLORS[stage],
+    fill: restante ? false : (k===0 ? 'origin' : '-1'), tension:0.25,
   }));
 }
 
