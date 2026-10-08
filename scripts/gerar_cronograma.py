@@ -112,13 +112,15 @@ def main(p6, xlsx, depara, dst):
     horas = {e: [0.0] * len(meses) for e in ETAPAS}   # peso (ton) por mês
     resto = Counter(); casado = Counter(); sem_sth = Counter(); sem_atv = Counter()
     sem_sth_linhas = Counter(); sem_atv_sth = Counter()
-    excluido = Counter(); total_ton = 0.0
+    excluido = Counter(); total_ton = 0.0; spools_cancelados = set()
     for r in spools:
         linha, peso, mat = r[2], float(r[4] or 0), r[5]
         sth = exato.get(norm(linha)) or base.get(chave_base(linha))
         total_ton += peso
         motivo = excluir(linha, r[8], r[9], sth)
         if motivo:                       # fora do escopo: não entra em nenhuma etapa
+            if motivo == 'cancelado':
+                spools_cancelados.add(f'{r[0]}|{r[1]}')
             excluido[motivo] += peso
             continue
         for etapa, (nome_p6, col) in ETAPAS.items():
@@ -144,6 +146,8 @@ def main(p6, xlsx, depara, dst):
                     continue
                 horas[etapa][i] += peso / dias
 
+    json.dump({'regra': 'excluir linhas com -6100- e itens cancelados', 'spools_cancelados': sorted(spools_cancelados)},
+              open('excluidos.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
     plano, plano_ton = {}, {}
     for e, v in horas.items():
         tot = sum(v); acc = 0.0; pct = []; ton = []

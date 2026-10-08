@@ -739,6 +739,14 @@ main{
 // Janela do projeto retomado. 'Base' = acumulado do último mês anterior ao início
 // (dados antigos do mesmo projeto); os meses do projeto partem desse nível.
 const PROJETO = { inicio: '2026-10-02', fim: '2027-10-20' };
+let EXCLUIR_SPOOLS = new Set(); // excluidos.json — spools cancelados (iso|spool) (gerado por scripts/gerar_cronograma.py)
+// Escopo: ficam de fora as linhas da 6100 e tudo que estiver cancelado.
+function spoolExcluido(linha, sfab, smon, iso, spool){
+  const l = String(linha||'');
+  if(l.includes('-6100-')) return true;
+  if(/CANCELAD/i.test(l + ' ' + (sfab||'') + ' ' + (smon||''))) return true;
+  return EXCLUIR_SPOOLS.has(iso + '|' + spool);
+}
 let CRONO = null; // cronograma.json (meta mensal do Primavera P6) — ver scripts/gerar_cronograma.py
 let showHistorico = false;
 let tabelaModo = 'etapas'; // 'etapas' | 'pxr' (Planejado × Realizado) — comparar as duas e decidir
@@ -1073,7 +1081,8 @@ function parseWorkbookToRows(wb){
 
   const sheet = wb.Sheets[spoolsSheet];
   const json  = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true, range: 5 });
-  const rows  = json.filter(row => row[SPOOLS_COLS.unid] && row[SPOOLS_COLS.peso] != null);
+  const rows  = json.filter(row => row[SPOOLS_COLS.unid] && row[SPOOLS_COLS.peso] != null)
+    .filter(row => !spoolExcluido(row[SPOOLS_COLS.linha], row[SPOOLS_COLS.sfab], row[SPOOLS_COLS.smon], String(row[SPOOLS_COLS.iso] ?? ''), String(row[SPOOLS_COLS.spool] ?? '')));
   if(!rows.length) throw new Error('Não foi possível localizar dados válidos na aba "Mapa de Spools" (cabeçalho esperado na linha 6).');
   const sampleKeys = Object.keys(rows[0]);
   const missing       = Object.values(SPOOLS_COLS).filter(h => !sampleKeys.includes(h));
@@ -2238,8 +2247,28 @@ function saveMeta(patch){
 }
 
 // ---------- Init / re-init on new data ----------
+// Dados já publicados (data.json) não trazem datas por spool, então não dá para recalcular as
+// curvas: ajusta só o escopo (total, nº de spools e lista). Uploads novos já saem filtrados.
+function aplicarExclusoes(d){
+  if(d.escopo_filtrado) return d;
+  let ton = 0, n = 0; const porUnid = {};
+  d.records = d.records.filter(r=>{
+    if(!spoolExcluido(r[2], r[5], r[6], r[0], r[1])) return true;
+    const t = r[4]/1000; ton += t; n++; porUnid[r[3]] = (porUnid[r[3]]||0) + t; return false;
+  });
+  if(n){
+    const baixa = (c, t) => { if(c) c.total = +(c.total - t).toFixed(3); };
+    baixa(d.overall, ton);
+    Object.keys(porUnid).forEach(u => baixa(d.by_unidade[u], porUnid[u]));
+    d.kpis.total_ton = +(d.kpis.total_ton - ton).toFixed(3);
+    d.kpis.total_spools -= n;
+  }
+  d.escopo_filtrado = true;
+  return d;
+}
+
 function initFromData(newData){
-  DATA = newData;
+  DATA = aplicarExclusoes(newData);
   currentUnidade = '__ALL__';
 
   unidadeSelect.innerHTML = '<option value="__ALL__">Todos os sistemas</option>';
@@ -2549,6 +2578,9 @@ async function boot(){
     dataErr = err; console.error('Falha ao carregar data.json:', err);
     if(_savedData){ DATA = _savedData; dataFromCache = true; }
   }
+
+  try { EXCLUIR_SPOOLS = new Set((await fetchJson('excluidos.json')).spools_cancelados); }
+  catch(err){ console.warn('excluidos.json indisponível:', err); }
 
   try { CRONO = await fetchJson('cronograma.json'); }
   catch(err){ console.warn('cronograma.json indisponível — meta P6 não exibida:', err); }
