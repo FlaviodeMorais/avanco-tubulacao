@@ -50,6 +50,16 @@ def dt(s):
     return date(int(m[3]), int(m[2]), int(m[1])) if m else None
 
 
+def excluir(linha, status_fab, status_mon, sth):
+    """Motivo de exclusão do escopo: linhas da 6100 e tudo que estiver cancelado."""
+    if '-6100-' in (linha or ''):
+        return 'linha 6100'
+    txt = ' '.join(str(x or '') for x in (linha, status_fab, status_mon, sth))
+    if 'CANCELAD' in txt.upper():
+        return 'cancelado'
+    return None
+
+
 def le_depara(path):
     por_linha = defaultdict(list)
     for l in open(path, encoding='utf-8').read().split('\n')[1:]:
@@ -102,9 +112,15 @@ def main(p6, xlsx, depara, dst):
     horas = {e: [0.0] * len(meses) for e in ETAPAS}   # peso (ton) por mês
     resto = Counter(); casado = Counter(); sem_sth = Counter(); sem_atv = Counter()
     sem_sth_linhas = Counter(); sem_atv_sth = Counter()
+    excluido = Counter(); total_ton = 0.0
     for r in spools:
         linha, peso, mat = r[2], float(r[4] or 0), r[5]
         sth = exato.get(norm(linha)) or base.get(chave_base(linha))
+        total_ton += peso
+        motivo = excluir(linha, r[8], r[9], sth)
+        if motivo:                       # fora do escopo: não entra em nenhuma etapa
+            excluido[motivo] += peso
+            continue
         for etapa, (nome_p6, col) in ETAPAS.items():
             if r[col]:               # etapa já realizada -> faz parte da Base
                 continue
@@ -146,9 +162,13 @@ def main(p6, xlsx, depara, dst):
             'casado_ton': {e: round(v, 1) for e, v in casado.items()},
             'sem_sth_ton': {e: round(v, 1) for e, v in sem_sth.items()},
             'sem_atividade_p6_ton': {e: round(v, 1) for e, v in sem_atv.items()},
+            'excluido_ton': {k: round(v, 1) for k, v in excluido.items()},
+            'escopo_ctb_ton': round(total_ton, 1),
+            'escopo_sem_excluidos_ton': round(total_ton - sum(excluido.values()), 1),
         },
     }, open(dst, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 
+    print('Excluído (ton):', {k: round(v, 1) for k, v in excluido.items()}, '| escopo', round(total_ton, 1), '->', round(total_ton - sum(excluido.values()), 1))
     print('Restante (ton):', {e: round(v, 1) for e, v in resto.items()})
     print('Casado com P6 :', {e: round(v, 1) for e, v in casado.items()})
     print('Sem STH       :', {e: round(v, 1) for e, v in sem_sth.items()})
