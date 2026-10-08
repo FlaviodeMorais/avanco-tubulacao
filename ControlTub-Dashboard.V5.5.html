@@ -364,6 +364,8 @@ main{
 
   .summary-table .base-col{ background:#F3F1EC; font-weight:600; }
   .summary-table .plan-row td{ color:#675C53; font-style:italic; font-size:.92em; }
+  .summary-table .dev-neg{ color:#B3261E; font-weight:600; }
+  .summary-table .dev-pos{ color:#008542; font-weight:600; }
   .summary-table .future-col{ color:#B5ADA3; }
 </style>
 </head>
@@ -459,7 +461,11 @@ main{
         <h2>Resumo Mensal <span class="mono-tag">ACUMULADO</span></h2>
         <p class="panel-sub">Peso acumulado (ton) por etapa — parte da Base (acumulado do projeto anterior) e acompanha a meta do cronograma P6 (Out/26 a Ago/27). Meta = Base + (escopo − Base) × % planejado.</p>
       </div>
-      <button class="mode-btn" id="histToggle" type="button"></button>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="tabModoEtapas" type="button">Etapas + meta</button>
+        <button class="mode-btn" id="tabModoPxR" type="button">Planejado × Realizado</button>
+        <button class="mode-btn" id="histToggle" type="button"></button>
+      </div>
     </div>
     <div class="summary-scroll">
       <table class="summary-table" id="summaryTable"></table>
@@ -732,9 +738,10 @@ main{
 <script>
 // Janela do projeto retomado. 'Base' = acumulado do último mês anterior ao início
 // (dados antigos do mesmo projeto); os meses do projeto partem desse nível.
-const PROJETO = { inicio: '2026-10-02', fim: '2027-08-26' };
+const PROJETO = { inicio: '2026-10-02', fim: '2027-10-20' };
 let CRONO = null; // cronograma.json (meta mensal do Primavera P6) — ver scripts/gerar_cronograma.py
 let showHistorico = false;
+let tabelaModo = 'etapas'; // 'etapas' | 'pxr' (Planejado × Realizado) — comparar as duas e decidir
 let DATA = null; // populado via fetch("data.json") ou localStorage — ver boot()
 // ---------- Setup ----------
 // Paleta oficial Petrobras (Manual de Identidade Visual, itens 3.2/3.3)
@@ -1531,6 +1538,12 @@ unidadeSelect.addEventListener('change', e=>{
   applyDetailFilter();
 });
 statusMonSelect.addEventListener('change', applyDetailFilter);
+['Etapas','PxR'].forEach(k=>document.getElementById('tabModo'+k).addEventListener('click', ()=>{
+  tabelaModo = k==='PxR' ? 'pxr' : 'etapas';
+  document.getElementById('tabModoEtapas').classList.toggle('active', tabelaModo==='etapas');
+  document.getElementById('tabModoPxR').classList.toggle('active', tabelaModo==='pxr');
+  renderSummaryTable();
+}));
 document.getElementById('histToggle').addEventListener('click', ()=>{ showHistorico = !showHistorico; renderSummaryTable(); });
 
 // ---------- KPIs ----------
@@ -1811,6 +1824,7 @@ function renderSummaryTable(){
   const curIdx = months.indexOf(mesLabel(hy,hm));
   const cell = (v,i,cls='') => `<td class="${cls}${i===curIdx?' latest-col':''}${v===null?' future-col':''}">${v===null?'—':fmtTon(v)}</td>`;
 
+  if(tabelaModo==='pxr') return renderSummaryPxR(view, months, curIdx, cell);
   let thead = '<thead><tr><th>Etapa</th><th class="base-col">Base<br><small>acum. até '+view.baseLabel+'</small></th>' +
     months.map((m,i)=>`<th${i===curIdx?' class="latest-col"':''}>${m}</th>`).join('') + '</tr></thead>';
   let rows = stages.map(stage=>{
@@ -1827,8 +1841,12 @@ function renderSummaryTable(){
     months.map((m,i)=>`<td class="total-row${i===curIdx?' latest-col':''}">${fmtTon(view.total)}</td>`).join('') + '</tr>';
   document.getElementById('summaryTable').innerHTML = thead + '<tbody>' + rows + totalRow + '</tbody>';
 
+  renderSummaryHist();
+}
+
+function renderSummaryHist(){
   // Histórico antigo (recolhido por padrão)
-  const curve = getCurve();
+  const curve = getCurve(), stages = DATA.stages;
   const hist = document.getElementById('summaryHist');
   hist.hidden = !showHistorico;
   if(showHistorico){
@@ -1836,6 +1854,25 @@ function renderSummaryTable(){
       stages.map(st=>'<tr><td>'+st+'</td>'+curve.series[st].map(v=>`<td>${fmtTon(v)}</td>`).join('')+'</tr>').join('') + '</tbody>';
   }
   document.getElementById('histToggle').textContent = showHistorico ? 'Ocultar histórico' : 'Ver histórico ('+DATA.months[0]+' a '+DATA.months[DATA.months.length-1]+')';
+}
+
+// Alternativa: por etapa com Planejado, Realizado e Desvio (ton) em cada mês
+function renderSummaryPxR(view, months, curIdx, cell){
+  const stages = DATA.stages.filter(st=>view.plan[st]);
+  const thead = '<thead><tr><th>Etapa</th><th></th><th class="base-col">Base</th>' +
+    months.map((m,i)=>`<th${i===curIdx?' class="latest-col"':''}>${m}</th>`).join('') + '</tr></thead>';
+  const rows = stages.map(stage=>{
+    const dot = `<span class="dot" style="background:${STAGE_COLORS[stage]}; margin-right:7px; vertical-align:1px;"></span>`;
+    const dev = view.series[stage].map((r,i)=> r===null || view.plan[stage][i]===null ? null : +(r - view.plan[stage][i]).toFixed(3));
+    const devCell = (v,i)=> v===null ? cell(null,i) :
+      `<td class="${v<0?'dev-neg':'dev-pos'}${i===curIdx?' latest-col':''}">${v>0?'+':''}${fmtTon(v)}</td>`;
+    return `<tr><td rowspan="3">${dot}${stage}</td><td>Planejado</td><td class="base-col">${fmtTon(view.base[stage])}</td>` +
+        view.plan[stage].map((v,i)=>cell(v,i)).join('') + '</tr>' +
+      '<tr><td>Realizado</td><td class="base-col">'+fmtTon(view.base[stage])+'</td>' + view.series[stage].map((v,i)=>cell(v,i)).join('') + '</tr>' +
+      '<tr class="plan-row"><td>Desvio</td><td class="base-col"></td>' + dev.map(devCell).join('') + '</tr>';
+  }).join('');
+  document.getElementById('summaryTable').innerHTML = thead + '<tbody>' + rows + '</tbody>';
+  renderSummaryHist();
 }
 
 // ---------- Avanço por SOP (linhas, spools, peso e % Fabricado/Liberado por pacote) ----------
