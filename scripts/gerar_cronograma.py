@@ -60,6 +60,46 @@ def excluir(linha, status_fab, status_mon, sth):
     return None
 
 
+def ac_pequeno(r):
+    """Linhas em AC com diâmetro até 2\": avanço de fabricação/montagem zerado (FAB - Não iniciado)."""
+    return r[5] == 'AC' and isinstance(r[23], (int, float)) and r[23] <= 2
+
+
+# etapa do painel -> coluna em Dados_Spools (datas de fabricação e montagem)
+COL_ETAPA = {'Fabricado': 12, 'Programado': 13, 'Pré-Montagem': 14, 'Visual de Ajuste': 15,
+             'Soldado': 16, 'Visual de Solda': 17, 'Liberado END': 18, 'Teste Hidrostático': 19}
+MES_IDX = {a: i for i, a in enumerate(['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'])}
+
+
+def gera_ac_pequeno(spools, excluidos_keys, dst, data_json='data.json'):
+    """ac_pequeno.json: o que sai da Base publicada (data.json) ao zerar os AC <= 2\"."""
+    d = json.load(open(data_json, encoding='utf-8'))
+    unid = {(a[0], a[1]): a[3] for a in d['records']}
+    ends = []
+    for m in d['months']:
+        y, mo = 2000 + int(m[4:]), MES_IDX[m[:3]]
+        ends.append(datetime(y + (mo == 11), (mo + 1) % 12 + 1, 1) - timedelta(seconds=1))
+    serie = defaultdict(lambda: defaultdict(lambda: [0.0] * len(ends)))
+    chaves, ton = [], 0.0
+    for r in spools:
+        k = f'{r[0]}|{r[1]}'
+        if not ac_pequeno(r) or k in excluidos_keys or excluir(r[2], r[8], r[9], None):
+            continue
+        chaves.append(k); ton += float(r[4] or 0)
+        for etapa, col in COL_ETAPA.items():
+            dt_ = r[col]
+            if isinstance(dt_, datetime):
+                for i, fim in enumerate(ends):
+                    if dt_ <= fim:
+                        serie[unid.get((r[0], r[1]), '?')][etapa][i] += float(r[4] or 0)
+    out = {'regra': 'AC com diametro ate 2" -> avanco de fabricacao e montagem zerado; status FAB - Nao iniciado',
+           'aproximado': 'datas lidas da planilha CTB (pode divergir do ON-SITE ate novo upload)',
+           'months': d['months'], 'ton': round(ton, 3), 'spools': chaves,
+           'baixa_ton': {u: {e: [round(x, 3) for x in v] for e, v in et.items()} for u, et in serie.items()}}
+    json.dump(out, open(dst, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    return len(chaves), ton
+
+
 def le_depara(path):
     por_linha = defaultdict(list)
     for l in open(path, encoding='utf-8').read().split('\n')[1:]:
@@ -124,7 +164,7 @@ def main(p6, xlsx, depara, dst):
             excluido[motivo] += peso
             continue
         for etapa, (nome_p6, col) in ETAPAS.items():
-            if r[col]:               # etapa já realizada -> faz parte da Base
+            if r[col] and not ac_pequeno(r):   # etapa já realizada -> Base (AC <= 2" volta ao zero)
                 continue
             resto[etapa] += peso
             if not sth or not sth.startswith('STH-'):
@@ -148,6 +188,8 @@ def main(p6, xlsx, depara, dst):
 
     json.dump({'regra': 'excluir linhas com -6100- e itens cancelados', 'spools_cancelados': sorted(spools_cancelados)},
               open('excluidos.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
+    n_ac, t_ac = gera_ac_pequeno(spools, set(spools_cancelados), 'ac_pequeno.json')
+    print('AC <= 2" zerados:', n_ac, 'spools', round(t_ac, 1), 'ton')
     plano, plano_ton = {}, {}
     for e, v in horas.items():
         tot = sum(v); acc = 0.0; pct = []; ton = []

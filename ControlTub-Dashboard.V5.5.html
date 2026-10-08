@@ -747,6 +747,7 @@ function spoolExcluido(linha, sfab, smon, iso, spool){
   if(/CANCELAD/i.test(l + ' ' + (sfab||'') + ' ' + (smon||''))) return true;
   return EXCLUIR_SPOOLS.has(iso + '|' + spool);
 }
+let AC_PEQUENO = null; // ac_pequeno.json — baixa na Base dos AC <= 2" (gerado por scripts/gerar_cronograma.py)
 let CRONO = null; // cronograma.json (meta mensal do Primavera P6) — ver scripts/gerar_cronograma.py
 let showHistorico = false;
 let tabelaModo = 'etapas'; // 'etapas' | 'pxr' (Planejado × Realizado) — comparar as duas e decidir
@@ -844,7 +845,17 @@ function parsePolegadas(s){
 function monthEndOf(y, m){ return new Date(y, m+1, 0, 23, 59, 59); }
 function monthKey(y, m){ return y*12+m; }
 
+// Linhas em AC com Ø <= 2": avanço de fabricação e montagem zerado; o peso fica no escopo
+// como "FAB - Não iniciado".
+function acPequeno(r){ return r.mat==='AC' && parsePolegadas(r.dipol) !== null && parsePolegadas(r.dipol) <= 2; }
+function zerarAcPequeno(r){
+  if(!acPequeno(r)) return r;
+  const stageDates = {}; STAGE_NAMES.forEach(s => stageDates[s] = null);
+  return { ...r, stageDates, fabDates: { corte: null, liberado_fab: null }, sfab: 'Não iniciado', smon: 'FAB - Não iniciado' };
+}
+
 function computeDashboardData(rows){
+  rows = rows.map(zerarAcPequeno);
   // rows: array of {iso, spool, linha, unid, peso, sfab, smon, sop, sth, stageDates: {stageName: Date|null}}
   let minKey = null, maxKey = null;
   rows.forEach(r=>{
@@ -1035,7 +1046,7 @@ function computeDashboardData(rows){
     .slice(0,20);
 
   return {
-    months, days_in_month, stages: STAGE_NAMES, overall, by_unidade,
+    months, days_in_month, stages: STAGE_NAMES, overall, by_unidade, escopo_filtrado: true, ac_pequeno_zerado: true,
     kpis: {
       total_ton: overall.total, total_spools, nao_iniciados, nao_iniciados_ton,
       sop_total_n: sopMap.size, sop_avg_pct, sop_completos, sop_prontos_ton,
@@ -2264,6 +2275,41 @@ function aplicarExclusoes(d){
     d.kpis.total_spools -= n;
   }
   d.escopo_filtrado = true;
+  return aplicarAcPequeno(d);
+}
+
+// AC com Ø <= 2": tira da Base o avanço de fabricação/montagem (valores da planilha CTB,
+// aproximados até um novo upload ON-SITE) e marca os spools como FAB - Não iniciado.
+function aplicarAcPequeno(d){
+  if(d.ac_pequeno_zerado || !AC_PEQUENO) return d;
+  if(JSON.stringify(AC_PEQUENO.months) !== JSON.stringify(d.months)) return d;
+  const chaves = new Set(AC_PEQUENO.spools);
+  const baixa = AC_PEQUENO.baixa_ton;
+  const subtrai = (curve, deltas) => STAGE_NAMES.forEach(st => {
+    if(!deltas[st]) return;
+    curve.series[st] = curve.series[st].map((v,i) => +Math.max(0, v - deltas[st][i]).toFixed(3));
+  });
+  const soma = {};
+  Object.keys(baixa).forEach(u => {
+    if(d.by_unidade[u]) subtrai(d.by_unidade[u], baixa[u]);
+    Object.keys(baixa[u]).forEach(st => {
+      soma[st] = soma[st] || baixa[u][st].map(()=>0);
+      baixa[u][st].forEach((x,i)=>{ soma[st][i] += x; });
+    });
+  });
+  subtrai(d.overall, soma);
+  let n = 0, ton = 0;
+  d.records.forEach(r => {
+    if(!chaves.has(r[0] + '|' + r[1])) return;
+    if(!isMontagemNaoIniciada(r[6])){ n++; ton += r[4]/1000; }
+    r[5] = 'Não iniciado'; r[6] = 'FAB - Não iniciado';
+  });
+  d.kpis.nao_iniciados += n;
+  d.kpis.nao_iniciados_ton = +(d.kpis.nao_iniciados_ton + ton).toFixed(3);
+  d.kpis.spoolsAc2_realizado_ton = 0; d.kpis.spoolsAc2_pct = 0;
+  ['Não iniciado'].forEach(x => { if(!d.status_fab.includes(x)) d.status_fab.push(x); });
+  if(!d.status_mon.includes('FAB - Não iniciado')) d.status_mon.push('FAB - Não iniciado');
+  d.ac_pequeno_zerado = true;
   return d;
 }
 
@@ -2581,6 +2627,9 @@ async function boot(){
 
   try { EXCLUIR_SPOOLS = new Set((await fetchJson('excluidos.json')).spools_cancelados); }
   catch(err){ console.warn('excluidos.json indisponível:', err); }
+
+  try { AC_PEQUENO = await fetchJson('ac_pequeno.json'); }
+  catch(err){ console.warn('ac_pequeno.json indisponível:', err); }
 
   try { CRONO = await fetchJson('cronograma.json'); }
   catch(err){ console.warn('cronograma.json indisponível — meta P6 não exibida:', err); }
