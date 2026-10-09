@@ -248,6 +248,25 @@ main{
 .marcos-resumo small{ color:var(--text-muted); font-size:11px; }
 .marcos-linha{ position:relative; font-size:11px; max-height:560px; overflow-y:auto; }
 .marcos-linha .mrow.eixo{ position:sticky; top:0; background:var(--bg-panel); z-index:2; border-top:0; }
+.mt-wrap{ position:relative; overflow-x:auto; overflow-y:hidden; border:1px solid var(--hairline); background:var(--bg-shade); margin-bottom:6px; }
+.mt{ position:relative; }
+.mt .eixo{ position:absolute; left:0; right:0; height:3px; background:#1A1A1A; }
+.mt .tick{ position:absolute; width:1px; height:12px; background:#1A1A1A; }
+.mt .tick-l{ position:absolute; font-size:10px; color:var(--text-muted); transform:translateX(-50%); white-space:nowrap; }
+.mt .hj{ position:absolute; width:2px; background:#D32F2F66; }
+.mt .hj-l{ position:absolute; font-size:10px; color:#D32F2F; transform:translateX(-50%); }
+.mt .pt{ position:absolute; width:10px; height:10px; border:2px solid #1A1A1A; background:#fff; box-sizing:border-box; transform:translateX(-50%); }
+.mt .pt.ok{ background:#1A1A1A; }
+.mt .lig{ position:absolute; width:1px; background:#1A1A1A88; z-index:0; }
+.mt .cx{ z-index:1; }
+.mt .cx{ position:absolute; width:98px; box-sizing:border-box; border:2px solid var(--verde); background:#fff; border-radius:3px; padding:2px 5px; font-size:9px; line-height:1.2; overflow:hidden; cursor:pointer; transform:translateX(-50%); }
+.mt .cx b{ display:block; font-size:10px; white-space:nowrap; }
+.mt .cx small{ color:var(--text-muted); display:block; }
+.mt .cx .bar{ height:3px; background:#E4E2DD; margin-top:2px; } .mt .cx .bar i{ display:block; height:100%; background:var(--verde); }
+.mt .cx.atraso{ border-color:#D32F2F; } .mt .cx.atraso .bar i{ background:#D32F2F; }
+.mt .cx.ok{ background:#E3F3E9; }
+.mt .cx.sel{ box-shadow:0 0 0 3px #FDC82F; z-index:3; }
+.mt .cx:hover{ z-index:4; box-shadow:0 0 0 2px #00854255; }
 .marcos-filtro{ display:flex; align-items:center; gap:8px; margin:0 0 8px; font-size:12px; }
 .marcos-filtro select{ font:inherit; padding:5px 8px; border:1px solid var(--hairline); background:#fff; max-width:340px; }
 .mrow{ display:grid; grid-template-columns:270px 1fr; align-items:center; border-top:1px solid var(--hairline); min-height:26px; }
@@ -399,7 +418,7 @@ main{
   .summary-table .dev-neg{ color:#B3261E; font-weight:600; }
   .summary-table .dev-pos{ color:#008542; font-weight:600; }
   .summary-table .future-col{ color:#B5ADA3; }
-  /* Nesta versão (V5.6) ficam ocultos: Status END, Velocidade de Fabricação/Montagem e tabela de Spools */
+  /* Nesta versão (V5.7) ficam ocultos: Status END, Velocidade de Fabricação/Montagem e tabela de Spools */
   [data-oculto]{ display:none !important; }
 </style>
 </head>
@@ -605,6 +624,8 @@ main{
     </div>
     <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select><label for="marcosSel" style="margin-left:12px">Mostrar:</label>
       <select id="marcosSel"><option value="__ALL__">Todos os SOP (por GP)</option></select></div>
+    <div id="marcosTimeline" class="mt-wrap"></div>
+    <p class="panel-sub" style="margin:4px 0 12px">Cada caixa é um SOP, posicionado no término previsto do último teste hidrostático dele. Clique numa caixa para ver os STH abaixo.</p>
     <div id="marcosResumo" class="marcos-resumo"></div>
     <div id="marcosLinha" class="marcos-linha"></div>
     <div class="marcos-legenda">
@@ -2089,7 +2110,67 @@ function renderLinhasRanking(){
 // ---------- Curva de Avanço por SOP (drill-down ao clicar numa linha da tabela) ----------
 let chartSopCurve = null;
 // ---------- Marcos por STH (montagem e teste hidrostático) do SOP selecionado ----------
+// Linha do tempo horizontal: uma caixa por SOP, na data do último teste hidrostático previsto dele
+function renderMarcosTimeline(sopSel){
+  const wrap = document.getElementById('marcosTimeline'); if(!wrap) return;
+  const real = DATA.sth_marcos || {};
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const dt = s => s ? new Date(s + 'T00:00:00') : null;
+  const por = {};
+  Object.keys(real).forEach(k=>{
+    const r = real[k]; if(!r.sop || !sopNaUnidade(r.sop)) return;
+    const p = MARCOS_P6[k] || {}, tp = dt(p.th && p.th[1]);
+    const o = por[r.sop] || (por[r.sop] = { sop:r.sop, n:0, testados:0, fim:null });
+    o.n++; if(r.th) o.testados++;
+    if(tp && (!o.fim || tp > o.fim)) o.fim = tp;
+  });
+  const lista = Object.values(por).filter(o=>o.fim).sort((a,b)=>a.fim-b.fim);
+  const semData = Object.values(por).length - lista.length;
+  if(!lista.length){ wrap.innerHTML = '<p class="panel-sub" style="padding:14px">Sem SOP com teste previsto no P6.</p>'; return; }
+  const W = Math.max(wrap.clientWidth || 1500, FILTRO_UNID ? 3000 : 4400), PAD = 60, usable = W - 2*PAD;  // eixo largo, com rolagem horizontal, para as caixas não se empilharem
+  const d0 = new Date(2026,9,1), d1 = new Date(2027,10,1), span = d1 - d0;
+  const x = d => PAD + Math.max(0, Math.min(1, (d - d0) / span)) * usable;
+  const CW = 98, CH = 38, GAP = 4;
+  // distribui as caixas alternando acima/abaixo do eixo e subindo de nível quando colidem
+  const nivel = { up:[], dn:[] }; let alt = 0;
+  lista.forEach(o=>{
+    o.x = x(o.fim);
+    let lado = (alt++ % 2) ? 'dn' : 'up';
+    const livre = l => { let n = 0; while(nivel[l][n] !== undefined && o.x - nivel[l][n] < CW + 4) n++; return n; };
+    const nu = livre(lado), no = livre(lado === 'up' ? 'dn' : 'up');
+    if(no < nu) lado = lado === 'up' ? 'dn' : 'up';
+    o.lado = lado; o.nv = livre(lado); nivel[lado][o.nv] = o.x;
+  });
+  const nUp = Math.max(1, ...lista.filter(o=>o.lado==='up').map(o=>o.nv+1)), nDn = Math.max(1, ...lista.filter(o=>o.lado==='dn').map(o=>o.nv+1));
+  const yEixo = 10 + nUp*(CH+GAP) + 14, H = yEixo + 28 + nDn*(CH+GAP) + 10;
+  let h = `<div class="mt" style="width:${W}px;height:${H}px"><div class="eixo" style="top:${yEixo}px"></div>`;
+  for(let d=new Date(d0); d<=d1; d.setMonth(d.getMonth()+1)){
+    h += `<div class="tick" style="left:${x(d)}px;top:${yEixo-4}px"></div><div class="tick-l" style="left:${x(d)}px;top:${yEixo+9}px">${MES_ABR[d.getMonth()]}/${String(d.getFullYear()).slice(2)}</div>`;
+  }
+  if(hoje >= d0 && hoje < d1) h += `<div class="hj" style="left:${x(hoje)}px;top:${yEixo-12}px;height:24px"></div><div class="hj-l" style="left:${x(hoje)}px;top:${yEixo+22}px">hoje</div>`;
+  const f = d => d.toLocaleDateString('pt-BR');
+  lista.forEach(o=>{
+    const pct = o.n ? o.testados/o.n*100 : 0;
+    const completo = o.testados === o.n, atraso = !completo && o.fim < hoje;
+    const top = o.lado === 'up' ? yEixo - 14 - (o.nv+1)*(CH+GAP) + GAP : yEixo + 30 + o.nv*(CH+GAP);
+    const ligTop = o.lado === 'up' ? top + CH : yEixo, ligH = o.lado === 'up' ? yEixo - (top + CH) : top - yEixo;
+    h += `<div class="lig" style="left:${o.x}px;top:${ligTop}px;height:${ligH}px"></div>
+      <div class="pt ${completo?'ok':''}" style="left:${o.x}px;top:${yEixo-4}px"></div>
+      <div class="cx ${completo?'ok':''} ${atraso?'atraso':''} ${o.sop===sopSel?'sel':''}" data-sop="${escapeHtml(o.sop)}" style="left:${o.x}px;top:${top}px;height:${CH}px"
+           title="${escapeHtml(o.sop)} · ${o.n} STH · teste previsto até ${f(o.fim)} · ${o.testados} testados">
+        <b>${escapeHtml(o.sop.replace('SOP-',''))}</b><small>${escapeHtml(GP_SOP[o.sop]||'—')} · ${o.n} STH · ${f(o.fim).slice(0,5)}</small>
+        <div class="bar"><i style="width:${pct}%"></i></div></div>`;
+  });
+  wrap.innerHTML = h + '</div>' + (semData ? `<p class="panel-sub" style="padding:4px 10px">${semData} SOP sem teste previsto no P6 não aparecem na linha.</p>` : '');
+  if(!wrap.dataset.rolou){ wrap.dataset.rolou = '1'; wrap.scrollLeft = Math.max(0, x(lista[0].fim) - 120); }
+  wrap.querySelectorAll('.cx').forEach(c=>c.addEventListener('click', ()=>{
+    const sel = document.getElementById('marcosSel');
+    if(sel){ sel.value = c.dataset.sop; renderSopMarcos(c.dataset.sop); }
+  }));
+}
+
 function renderSopMarcos(sopCode){
+  try{ renderMarcosTimeline(sopCode); }catch(e){ console.error('Linha do tempo de marcos:', e); }
   const box = document.getElementById('marcosLinha'), resumo = document.getElementById('marcosResumo');
   if(!box) return;
   const todos = sopCode === '__ALL__';

@@ -297,7 +297,7 @@ main{
 .marcos-linha{ position:relative; font-size:11px; max-height:560px; overflow-y:auto; }
 .marcos-linha .mrow.eixo{ position:sticky; top:0; background:var(--bg-panel); z-index:2; border-top:0; }
 .mt-wrap{ position:relative; overflow-x:auto; overflow-y:hidden; border:1px solid var(--hairline); background:var(--bg-shade); margin-bottom:6px; }
-.mt{ position:relative; min-width:1500px; }
+.mt{ position:relative; }
 .mt .eixo{ position:absolute; left:0; right:0; height:3px; background:#1A1A1A; }
 .mt .tick{ position:absolute; width:1px; height:12px; background:#1A1A1A; }
 .mt .tick-l{ position:absolute; font-size:10px; color:var(--text-muted); transform:translateX(-50%); white-space:nowrap; }
@@ -305,11 +305,12 @@ main{
 .mt .hj-l{ position:absolute; font-size:10px; color:#D32F2F; transform:translateX(-50%); }
 .mt .pt{ position:absolute; width:10px; height:10px; border:2px solid #1A1A1A; background:#fff; box-sizing:border-box; transform:translateX(-50%); }
 .mt .pt.ok{ background:#1A1A1A; }
-.mt .lig{ position:absolute; width:1px; background:#1A1A1A; }
-.mt .cx{ position:absolute; width:104px; box-sizing:border-box; border:2px solid var(--verde); background:#fff; border-radius:3px; padding:3px 5px; font-size:10px; line-height:1.25; cursor:pointer; transform:translateX(-50%); }
-.mt .cx b{ display:block; font-size:11px; white-space:nowrap; }
+.mt .lig{ position:absolute; width:1px; background:#1A1A1A88; z-index:0; }
+.mt .cx{ z-index:1; }
+.mt .cx{ position:absolute; width:98px; box-sizing:border-box; border:2px solid var(--verde); background:#fff; border-radius:3px; padding:2px 5px; font-size:9px; line-height:1.2; overflow:hidden; cursor:pointer; transform:translateX(-50%); }
+.mt .cx b{ display:block; font-size:10px; white-space:nowrap; }
 .mt .cx small{ color:var(--text-muted); display:block; }
-.mt .cx .bar{ height:4px; background:#E4E2DD; margin-top:3px; } .mt .cx .bar i{ display:block; height:100%; background:var(--verde); }
+.mt .cx .bar{ height:3px; background:#E4E2DD; margin-top:2px; } .mt .cx .bar i{ display:block; height:100%; background:var(--verde); }
 .mt .cx.atraso{ border-color:#D32F2F; } .mt .cx.atraso .bar i{ background:#D32F2F; }
 .mt .cx.ok{ background:#E3F3E9; }
 .mt .cx.sel{ box-shadow:0 0 0 3px #FDC82F; z-index:3; }
@@ -465,7 +466,7 @@ main{
   .summary-table .dev-neg{ color:#B3261E; font-weight:600; }
   .summary-table .dev-pos{ color:#008542; font-weight:600; }
   .summary-table .future-col{ color:#B5ADA3; }
-  /* Nesta versão (V5.6) ficam ocultos: Status END, Velocidade de Fabricação/Montagem e tabela de Spools */
+  /* Nesta versão (V5.7) ficam ocultos: Status END, Velocidade de Fabricação/Montagem e tabela de Spools */
   [data-oculto]{ display:none !important; }
 </style>
 </head>
@@ -2175,10 +2176,10 @@ function renderMarcosTimeline(sopSel){
   const lista = Object.values(por).filter(o=>o.fim).sort((a,b)=>a.fim-b.fim);
   const semData = Object.values(por).length - lista.length;
   if(!lista.length){ wrap.innerHTML = '<p class="panel-sub" style="padding:14px">Sem SOP com teste previsto no P6.</p>'; return; }
-  const W = Math.max(1500, wrap.clientWidth || 1500), PAD = 60, usable = W - 2*PAD;
+  const W = Math.max(wrap.clientWidth || 1500, FILTRO_UNID ? 3000 : 4400), PAD = 60, usable = W - 2*PAD;  // eixo largo, com rolagem horizontal, para as caixas não se empilharem
   const d0 = new Date(2026,9,1), d1 = new Date(2027,10,1), span = d1 - d0;
   const x = d => PAD + Math.max(0, Math.min(1, (d - d0) / span)) * usable;
-  const CW = 108, CH = 54, GAP = 6;
+  const CW = 98, CH = 38, GAP = 4;
   // distribui as caixas alternando acima/abaixo do eixo e subindo de nível quando colidem
   const nivel = { up:[], dn:[] }; let alt = 0;
   lista.forEach(o=>{
@@ -2210,6 +2211,7 @@ function renderMarcosTimeline(sopSel){
         <div class="bar"><i style="width:${pct}%"></i></div></div>`;
   });
   wrap.innerHTML = h + '</div>' + (semData ? `<p class="panel-sub" style="padding:4px 10px">${semData} SOP sem teste previsto no P6 não aparecem na linha.</p>` : '');
+  if(!wrap.dataset.rolou){ wrap.dataset.rolou = '1'; wrap.scrollLeft = Math.max(0, x(lista[0].fim) - 120); }
   wrap.querySelectorAll('.cx').forEach(c=>c.addEventListener('click', ()=>{
     const sel = document.getElementById('marcosSel');
     if(sel){ sel.value = c.dataset.sop; renderSopMarcos(c.dataset.sop); }
