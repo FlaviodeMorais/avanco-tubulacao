@@ -2,7 +2,7 @@
 """De-para por spool: SOP/SUBSOP/STH antigos -> novos, a partir do CONTROLE GERAL DE STH-HC².
 
 Uso:
-  python3 scripts/gerar_de_para_spool.py "CONTROLE GERAL DE STH-HC²-24-09.xlsx" ON-SITE_Spools.xlsx [de_para_spool.json]
+  python3 scripts/gerar_de_para_spool.py "CONTROLE GERAL DE STH-HC²-24-09.xlsx" ON-SITE_Spools.xlsx [de_para_spool.json] ["Agrupamento por SOP_FIC_FVM.xlsx"]
 
 Aba "CONTROLE BASE" (cabeçalho na linha 4): 'Nº do Spool' (iso-spool), 'SOP  NOVO', 'SUBSOP NOVO',
 'STH NOVO' (SOP-STH, ex. STH-U-4710-0009-0034 -> STH do P6 = STH-U-4710-0034), 'LINHA'.
@@ -19,7 +19,16 @@ def sth_p6(s):
     return f'{m.group(1)}-{m.group(2)}' if m else None
 
 
-def main(ctl_xlsx, onsite_xlsx, dst):
+def sop_por_linha(agrup_xlsx):
+    """LINHA (maiúscula) -> SOP, do Agrupamento por SOP (usado quando o controle traz SOP '#N/A')."""
+    rows = list(openpyxl.load_workbook(agrup_xlsx, read_only=True, data_only=True).worksheets[0].iter_rows(values_only=True))
+    ix = {str(c).strip(): i for i, c in enumerate(rows[0]) if c}
+    return {str(r[ix['TAG']]).strip().upper(): str(r[ix['SOP']]).strip() for r in rows[1:]
+            if r[ix['TAG']] and str(r[ix['SOP']] or '').startswith('SOP-')}
+
+
+def main(ctl_xlsx, onsite_xlsx, dst, agrup=None):
+    lin_sop = sop_por_linha(agrup) if agrup else {}
     ws = openpyxl.load_workbook(ctl_xlsx, read_only=True, data_only=True)['CONTROLE BASE']
     rows = list(ws.iter_rows(values_only=True))
     ix = {str(n).strip(): i for i, n in enumerate(rows[3]) if n}
@@ -49,6 +58,10 @@ def main(ctl_xlsx, onsite_xlsx, dst):
             stat['sem correspondência'] += 1; continue
         stat[via] += 1
         sop, ssop, sth = reg
+        if not str(sop or '').startswith('SOP-'):      # '#N/A' no controle: usa o SOP da linha no Agrupamento
+            alt = lin_sop.get(str(r[cab['Linha']] or '').strip().upper())
+            if alt:
+                sop, stat['SOP via agrupamento'] = alt, stat['SOP via agrupamento'] + 1
         if 'CANCELAD' in str(sth).upper() or 'CANCELAD' in str(sop).upper():
             cancel.append(f'{r[cab["Isométrico"]]}|{r[cab["Spool"]]}')
             stat['cancelados'] += 1
@@ -61,4 +74,5 @@ def main(ctl_xlsx, onsite_xlsx, dst):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else 'de_para_spool.json')
+    main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else 'de_para_spool.json',
+         sys.argv[4] if len(sys.argv) > 4 else None)
