@@ -237,6 +237,8 @@ main{
 .detail-table tbody tr:hover td:first-child{ background:var(--bg-shade); }
 .detail-table tbody tr:hover td{ background:var(--bg-shade); }
 #sopAvancoBody tr{ cursor:pointer; }
+#sopAvancoBody tr.gp-head{ cursor:default; }
+#sopAvancoBody tr.gp-head td{ background:#F1EFE9; color:var(--verde); font-weight:700; letter-spacing:.3px; padding:7px 12px; }
 #sopAvancoBody tr.selected td{ background:#E3F3E9; }
 #sopAvancoBody tr.selected td:first-child{ color:var(--verde); }
 .status-pill{ display:inline-block; padding:2px 8px; border-radius:3px; font-size:11px; font-family:var(--body); font-weight:700; }
@@ -550,6 +552,7 @@ main{
         <thead>
           <tr>
             <th>SOP</th>
+            <th>GP</th>
             <th class="num">STH</th>
             <th class="num">Linhas</th>
             <th class="num">Spools</th>
@@ -747,6 +750,7 @@ const PROJETO = { inicio: '2026-10-02', fim: '2027-10-20', mesBase: 'Out/15' };
 const ETAPAS_OCULTAS = ['Programado', 'Visual de Ajuste', 'Liberado END'];
 const etapasVisiveis = () => DATA.stages.filter(st => !ETAPAS_OCULTAS.includes(st));
 let DEPARA_SPOOL = {}; // de_para_spool.json — SOP/SUBSOP/STH novos por spool (CONTROLE GERAL DE STH-HC²), chave iso|spool
+let GP_SOP = {}; // gp_sop.json — grupo de prioridade (GP) de cada SOP, da rede de precedência (CCM das malhas)
 let EXCLUIR_SPOOLS = new Set(); // excluidos.json — spools cancelados (iso|spool) (gerado por scripts/gerar_cronograma.py)
 // Escopo: ficam de fora as linhas da 6100 e tudo que estiver cancelado.
 function spoolExcluido(linha, sfab, smon, iso, spool){
@@ -1935,19 +1939,32 @@ function renderSummaryPxR(view, months, curIdx, cell){
 
 // ---------- Avanço por SOP (linhas, spools, peso e % Fabricado/Liberado por pacote) ----------
 function renderSopAvanco(){
-  const rows = DATA.sop_ranking || [];
+  let rows = DATA.sop_ranking || [];
   const body = document.getElementById('sopAvancoBody');
   if(!rows.length){
-    body.innerHTML = `<tr><td colspan="8" style="color:var(--text-muted); text-align:center; padding:22px 12px; white-space:normal">
+    body.innerHTML = `<tr><td colspan="9" style="color:var(--text-muted); text-align:center; padding:22px 12px; white-space:normal">
       Avanço por SOP calculado a partir da próxima planilha de Spools carregada — não disponível nos dados de demonstração embutidos nesta versão do arquivo.
     </td></tr>`;
     return;
   }
+  // Ordem de prioridade do CCM: GP do menor para o maior (precedência da rede); SOP sem GP no fim; dentro do GP, maior peso primeiro
+  const gpNum = sop => { const g = GP_SOP[sop]; return g ? parseInt(g.slice(2),10) : 9999; };
+  rows = rows.slice().sort((a,b)=> gpNum(a.sop)-gpNum(b.sop) || b.peso_total-a.peso_total);
+  const gpTot = {};
+  rows.forEach(s=>{ const g = GP_SOP[s.sop] || 'Sem GP'; const t = gpTot[g] || (gpTot[g]={sops:0,total:0,fab:0}); t.sops++; t.total+=s.peso_total; t.fab+=s.peso_fabricado; });
+  let gpAtual = null;
   body.innerHTML = rows.map(s=>{
     const barW = Math.min(s.pct_fabricado, 100);
     const cls = s.pct_fabricado>=70 ? 'qi-good' : s.pct_fabricado>=30 ? 'qi-warn' : 'qi-bad';
-    return `<tr data-sop="${escapeHtml(s.sop)}">
+    const g = GP_SOP[s.sop] || 'Sem GP';
+    let cab = '';
+    if(g !== gpAtual){
+      gpAtual = g; const t = gpTot[g], p = t.total ? t.fab/t.total*100 : 0;
+      cab = `<tr class="gp-head"><td colspan="9">${escapeHtml(g)} · ${fmtInt(t.sops)} SOP · ${fmtTon(t.total)} ton · ${String(p.toFixed(1)).replace('.',',')}% fabricado</td></tr>`;
+    }
+    return cab + `<tr data-sop="${escapeHtml(s.sop)}">
       <td style="font-weight:700">${escapeHtml(s.sop)}</td>
+      <td>${escapeHtml(GP_SOP[s.sop] || '—')}</td>
       <td class="num">${fmtInt(s.sths)}</td>
       <td class="num">${fmtInt(s.linhas)}</td>
       <td class="num">${fmtInt(s.spools)}</td>
@@ -2722,6 +2739,9 @@ async function boot(){
 
   try { DEPARA_SPOOL = (await fetchJson('de_para_spool.json')).spools || {}; }
   catch(err){ console.warn('de_para_spool.json indisponível — SOP/STH seguem os da planilha:', err); }
+
+  try { GP_SOP = (await fetchJson('gp_sop.json')).gp || {}; }
+  catch(err){ console.warn('gp_sop.json indisponível — sem GP:', err); }
 
   try { EXCLUIR_SPOOLS = new Set((await fetchJson('excluidos.json')).spools_cancelados); }
   catch(err){ console.warn('excluidos.json indisponível:', err); }
