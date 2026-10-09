@@ -18,7 +18,7 @@ Método
   4. Saída: % acumulado do peso restante por etapa. O painel aplica
      meta = Base + (escopo − Base) × %.
 """
-import csv, io, json, re, sys
+import csv, io, json, os, re, sys
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 
@@ -222,6 +222,20 @@ def main(p6, xlsx, depara, dst):
     atv = le_p6(p6)
     exato, base = le_depara(depara)
     spools = le_spools(xlsx)
+    # SOP / STH novos por spool (CONTROLE GERAL DE STH-HC2, via scripts/gerar_de_para_spool.py);
+    # sem correspondência, mantém o SOP/STH do ON-SITE e liga o STH pela linha (de_para_sth.tsv)
+    mapa = {}
+    if os.path.exists('de_para_spool.json'):
+        mapa = json.load(open('de_para_spool.json', encoding='utf-8'))['spools']
+        novos = []
+        for r in spools:
+            m = mapa.get(f'{r[0]}|{r[1]}')
+            r = list(r)
+            if m:
+                r[6], r[7] = m[0] or r[6], m[2] or m[3] or r[7]
+            novos.append(tuple(r))
+        spools = novos
+        print('de-para por spool:', len(mapa), 'spools')
     meses = []
     d = INICIO
     while d <= FIM:
@@ -235,8 +249,11 @@ def main(p6, xlsx, depara, dst):
     for r in spools:
         linha, peso, mat = r[2], float(r[4] or 0), r[5]
         sth = exato.get(norm(linha)) or base.get(chave_base(linha))
+        m = mapa.get(f'{r[0]}|{r[1]}')
+        if m:                            # STH do P6 vem do controle (por spool); só cai na linha se vier vazio
+            sth = m[2] or sth
         total_ton += peso
-        motivo = excluir(linha, r[8], r[9], sth)
+        motivo = excluir(linha, r[8], r[9], (m[3] if m else None) or sth)
         if motivo:                       # fora do escopo: não entra em nenhuma etapa
             if motivo == 'cancelado':
                 spools_cancelados.add(f'{r[0]}|{r[1]}')
@@ -285,7 +302,7 @@ def main(p6, xlsx, depara, dst):
         plano[e] = pct; plano_ton[e] = ton
 
     json.dump({
-        'fonte': 'Primavera P6 (disciplina TB) × peso do CTB, ligados pela linha (de_para_sth.tsv)',
+        'fonte': 'Primavera P6 (disciplina TB) × peso do CTB, ligados pelo STH de cada spool (CONTROLE GERAL DE STH-HC2) ou, sem ele, pela linha (de_para_sth.tsv)',
         'peso': 'peso restante do CTB (ton) distribuído entre início e término da atividade do STH',
         'months': [f'{ABR[m-1]}/{str(y)[2:]}' for y, m in meses],
         'plano': plano, 'plano_ton': plano_ton,

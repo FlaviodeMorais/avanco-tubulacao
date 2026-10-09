@@ -746,6 +746,7 @@ const PROJETO = { inicio: '2026-10-02', fim: '2027-10-20', mesBase: 'Out/15' };
 // Etapas que não aparecem nos gráficos nem no Resumo Mensal desta versão
 const ETAPAS_OCULTAS = ['Programado', 'Visual de Ajuste', 'Liberado END'];
 const etapasVisiveis = () => DATA.stages.filter(st => !ETAPAS_OCULTAS.includes(st));
+let DEPARA_SPOOL = {}; // de_para_spool.json — SOP/SUBSOP/STH novos por spool (CONTROLE GERAL DE STH-HC²), chave iso|spool
 let EXCLUIR_SPOOLS = new Set(); // excluidos.json — spools cancelados (iso|spool) (gerado por scripts/gerar_cronograma.py)
 // Escopo: ficam de fora as linhas da 6100 e tudo que estiver cancelado.
 function spoolExcluido(linha, sfab, smon, iso, spool){
@@ -1115,6 +1116,7 @@ function parseWorkbookToRows(wb){
   return rows.map(row=>{
     const stageDates = {};
     STAGE_NAMES.forEach(s => { stageDates[s] = excelDateToJs(row[SPOOLS_STAGE_HEADER[s]]); });
+    const dp = DEPARA_SPOOL[String(row[SPOOLS_COLS.iso] ?? '') + '|' + String(row[SPOOLS_COLS.spool] ?? '')];
     return {
       iso:   String(row[SPOOLS_COLS.iso]   ?? ''),
       spool: String(row[SPOOLS_COLS.spool] ?? ''),
@@ -1123,8 +1125,9 @@ function parseWorkbookToRows(wb){
       peso:  Number(row[SPOOLS_COLS.peso]) || 0,
       sfab:  row[SPOOLS_COLS.sfab] ? String(row[SPOOLS_COLS.sfab]) : '',
       smon:  row[SPOOLS_COLS.smon] ? String(row[SPOOLS_COLS.smon]) : '',
-      sop:   row[SPOOLS_COLS.sop] ? String(row[SPOOLS_COLS.sop]) : '',
-      sth:   row[SPOOLS_COLS.sth] ? String(row[SPOOLS_COLS.sth]) : '',
+      // SOP/STH novos (CONTROLE GERAL DE STH) quando o spool consta no de-para; senão, os da planilha
+      sop:   (dp && dp[0]) || (row[SPOOLS_COLS.sop] ? String(row[SPOOLS_COLS.sop]) : ''),
+      sth:   (dp && (dp[2] || dp[3])) || (row[SPOOLS_COLS.sth] ? String(row[SPOOLS_COLS.sth]) : ''),
       mat:   row[SPOOLS_COLS.mat] ? String(row[SPOOLS_COLS.mat]) : '',
       stageDates,
       fabDates: {
@@ -2716,6 +2719,9 @@ async function boot(){
     dataErr = err; console.error('Falha ao carregar data.json:', err);
     if(_savedData){ DATA = _savedData; dataFromCache = true; }
   }
+
+  try { DEPARA_SPOOL = (await fetchJson('de_para_spool.json')).spools || {}; }
+  catch(err){ console.warn('de_para_spool.json indisponível — SOP/STH seguem os da planilha:', err); }
 
   try { EXCLUIR_SPOOLS = new Set((await fetchJson('excluidos.json')).spools_cancelados); }
   catch(err){ console.warn('excluidos.json indisponível:', err); }
