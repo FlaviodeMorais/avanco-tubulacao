@@ -2358,38 +2358,36 @@ function renderSopCurve(){
   const pv = getProjetoView(false);
   const idxBase = DATA.months.indexOf(PROJETO.mesBase) >= 0 ? DATA.months.indexOf(PROJETO.mesBase) : DATA.months.length - 1;
   const n = 1;
-  const hist = [curve.series['Fabricado'][idxBase]];
-  const baseSop = hist[hist.length-1];
   const hojeKey = new Date().getFullYear()*12 + new Date().getMonth();
-  const projReal = pv.months.map(m => {
-    const k = (2000+Number(m.slice(4)))*12 + MES_ABR.indexOf(m.slice(0,3));
-    return k <= hojeKey ? baseSop : null;
-  });
   const labels = [DATA.months[idxBase]].concat(pv.months);
-  const real = hist.concat(projReal);
-  const restante = real.map(v => v===null ? null : +(curve.total - v).toFixed(3));
-  const datasets = [
-    { label:'Fabricado Remanescente', data: restante, backgroundColor: STAGE_COLORS['Fabricado'],
-      borderColor: STAGE_COLORS['Fabricado'], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
-      pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 },
-  ];
-  const pctDe = sp => CRONO && CRONO.plano_sop && CRONO.plano_sop[sp] && CRONO.plano_sop[sp]['Fabricado'];
-    const pct = alvos.some(pctDe);
-  if(pct){
-    // restante previsto = soma, por SOP, de total − (base + (total − base) × % planejado); SOP sem plano fica parado na base
+  const mesAteHoje = pv.months.map(m => (2000+Number(m.slice(4)))*12 + MES_ABR.indexOf(m.slice(0,3)) <= hojeKey);
+  const nomeRem = st => st + ' Remanescente';
+  const nomeBook = st => 'Book B ' + (st === 'Fabricado' ? 'Fabricação' : st);
+  const pctDe = (sp, st) => CRONO && CRONO.plano_sop && CRONO.plano_sop[sp] && CRONO.plano_sop[sp][st];
+  const real = [], plano = [];
+  // mesmas etapas e cores do Rundown geral: restante realizado e restante previsto (Book B) por etapa
+  etapasVisiveis().forEach(st=>{
+    const serie = sp => bySop[sp].series[st];
+    const total = curve.total;
+    const base = alvos.reduce((a,sp)=>a + serie(sp)[idxBase], 0);
+    const dados = [base].concat(mesAteHoje.map(ate => ate ? base : null)).map(v => v===null ? null : +(total - v).toFixed(3));
+    real.push({ label:nomeRem(st), data:dados, backgroundColor:STAGE_COLORS[st], borderColor:STAGE_COLORS[st], borderWidth:1.5,
+      pointRadius:3, pointHoverRadius:5, pointBackgroundColor:STAGE_COLORS[st], fill:false, tension:.25 });
+    if(!alvos.some(sp=>pctDe(sp, st))) return;
+    // restante previsto = soma, por SOP, de total − (base + (total − base) × % planejado); SOP sem plano da etapa fica parado na base
     const restPrev = j => alvos.reduce((a,sp)=>{
-      const c = bySop[sp], b = c.series['Fabricado'][idxBase], p = pctDe(sp);
+      const c = bySop[sp], b = serie(sp)[idxBase], p = pctDe(sp, st);
       return a + (c.total - (b + (c.total - b) * (p && j>=0 ? p[j] : 0)));
     }, 0);
     const meta = labels.map((m,i) => {
-      if(i === n-1) return +restPrev(-1).toFixed(3);          // parte do último ponto do histórico
-      const j = i < n ? -1 : CRONO.months.indexOf(m);
+      if(i === 0) return +restPrev(-1).toFixed(3);          // parte do último ponto do histórico (separarBase tira o ponto de Out/15)
+      const j = CRONO.months.indexOf(m);
       return j < 0 ? null : +restPrev(j).toFixed(3);
     });
-    datasets.push({ label:'Book B Fabricação', data: meta, borderColor: STAGE_COLORS['Fabricado'],
-      backgroundColor:'transparent', borderDash:[6,4], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
-      pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 });
-  }
+    plano.push({ label:nomeBook(st), data:meta, borderColor:STAGE_COLORS[st], backgroundColor:'transparent', borderDash:[6,4], borderWidth:1.5,
+      pointRadius:3, pointHoverRadius:5, pointBackgroundColor:STAGE_COLORS[st], fill:false, tension:.25 });
+  });
+  const datasets = real.concat(plano);
 
   if(chartSopCurve) chartSopCurve.destroy();
   chartSopCurve = new Chart(canvas.getContext('2d'), {
