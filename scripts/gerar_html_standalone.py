@@ -12,7 +12,7 @@ import json, re, sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-FONTE = RAIZ / 'ControlTub-Dashboard.V5.7.fonte.html'
+FONTE = RAIZ / 'ControlTub-Dashboard.V5.8.fonte.html'
 JSONS = ['data.json', 'juntas.json', 'cronograma.json', 'excluidos.json', 'ac_pequeno.json', 'de_para_spool.json', 'gp_sop.json', 'marcos_sth.json']
 
 
@@ -41,10 +41,10 @@ def main(libs, saida):
     antigo = "async function fetchJson(url){\n  const res"
     assert antigo in html
     html = html.replace(antigo, "async function fetchJson(url){\n  if(window.__EMBUTIDO__ && window.__EMBUTIDO__[url]) return window.__EMBUTIDO__[url];\n  const res")
-    html = html.replace('V5.7.fonte', 'V5.7')
+    html = html.replace('V5.8.fonte', 'V5.8')
     Path(saida).write_text(html, encoding='utf-8')
     print(saida, round(len(html) / 1e6, 2), 'MB')
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else str(RAIZ / 'ControlTub-Dashboard.V5.7.html'))
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else str(RAIZ / 'ControlTub-Dashboard.V5.8.html'))
