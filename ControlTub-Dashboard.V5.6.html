@@ -622,6 +622,7 @@ main{
         <h2>Avanço por SOP <span class="mono-tag">POR PESO</span></h2>
         <p class="panel-sub">Pacotes SOP — linhas, spools, peso de projeto e peso fabricado</p>
       </div>
+      <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select></div>
     </div>
     <div class="detail-scroll" style="max-height:420px">
       <table class="detail-table">
@@ -650,7 +651,7 @@ main{
         <p class="panel-sub">Montagem concluída e teste hidrostático por STH — previsto (P6) × realizado. O teste só acontece depois da montagem do STH. Troque o SOP clicando na tabela acima.</p>
       </div>
     </div>
-    <div class="marcos-filtro"><label for="marcosSel">Mostrar:</label>
+    <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select><label for="marcosSel" style="margin-left:12px">Mostrar:</label>
       <select id="marcosSel"><option value="__ALL__">Todos os SOP (por GP)</option></select></div>
     <div id="marcosResumo" class="marcos-resumo"></div>
     <div id="marcosLinha" class="marcos-linha"></div>
@@ -844,6 +845,9 @@ const PROJETO = { inicio: '2026-10-02', fim: '2027-10-20', mesBase: 'Out/15' };
 const ETAPAS_OCULTAS = ['Programado', 'Visual de Ajuste', 'Liberado END'];
 const etapasVisiveis = () => DATA.stages.filter(st => !ETAPAS_OCULTAS.includes(st));
 let DEPARA_SPOOL = {}; // de_para_spool.json — SOP/SUBSOP/STH novos por spool (CONTROLE GERAL DE STH-HC²), chave iso|spool
+let _sopAtual = null;
+let FILTRO_UNID = ''; // '' = todas | '4710' | '4730' — filtro de Avanço por SOP e Marcos por STH (unidade pelo código do SOP: SOP-U-4710-…)
+const sopNaUnidade = sop => !FILTRO_UNID || String(sop||'').includes('-' + FILTRO_UNID + '-');
 let GP_SOP = {}; // gp_sop.json — grupo de prioridade (GP) de cada SOP, da rede de precedência (CCM das malhas)
 let MARCOS_P6 = {}; // marcos_sth.json — montagem e teste hidrostático previstos por STH (P6)
 let EXCLUIR_SPOOLS = new Set(); // excluidos.json — spools cancelados (iso|spool) (gerado por scripts/gerar_cronograma.py)
@@ -2060,7 +2064,8 @@ function renderSopAvanco(){
   }
   // Ordem de prioridade do CCM: GP do menor para o maior (precedência da rede); SOP sem GP no fim; dentro do GP, maior peso primeiro
   const gpNum = sop => { const g = GP_SOP[sop]; return g ? parseInt(g.slice(2),10) : 9999; };
-  rows = rows.slice().sort((a,b)=> gpNum(a.sop)-gpNum(b.sop) || b.peso_total-a.peso_total);
+  rows = rows.filter(r=>sopNaUnidade(r.sop)).sort((a,b)=> gpNum(a.sop)-gpNum(b.sop) || b.peso_total-a.peso_total);
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:18px">Sem SOP nesta unidade.</td></tr>'; return; }
   const gpTot = {};
   rows.forEach(s=>{ const g = GP_SOP[s.sop] || 'Sem GP'; const t = gpTot[g] || (gpTot[g]={sops:0,total:0,fab:0}); t.sops++; t.total+=s.peso_total; t.fab+=s.peso_fabricado; });
   let gpAtual = null;
@@ -2087,8 +2092,17 @@ function renderSopAvanco(){
   }).join('');
   // seleciona o primeiro pacote (maior peso) por padrão, pra o painel de cima
   // nunca ficar vazio nem depender de o usuário descobrir que a linha é clicável
-  renderSopCurve(rows[0].sop);
+  renderSopCurve((rows.find(r=>r.sop===_sopAtual) || rows[0]).sop);
 }
+
+document.querySelectorAll('.filtro-unid').forEach(sel=>sel.addEventListener('change', ()=>{
+  FILTRO_UNID = sel.value;
+  document.querySelectorAll('.filtro-unid').forEach(o=>{ o.value = FILTRO_UNID; });
+  const msel = document.getElementById('marcosSel');
+  const eraTodos = !msel || msel.value === '__ALL__';
+  renderSopAvanco();   // refaz a tabela e, pelo SOP selecionado, o Rundown por SOP e os marcos
+  if(eraTodos) renderSopMarcos('__ALL__');   // quem estava vendo "Todos" continua vendo todos, só da unidade
+}));
 
 document.getElementById('sopAvancoBody').addEventListener('click', e=>{
   const tr = e.target.closest('tr[data-sop]');
@@ -2132,20 +2146,22 @@ function renderSopMarcos(sopCode){
   const gpN = sop => { const g = GP_SOP[sop]; return g ? parseInt(g.slice(2),10) : 9999; };
   const sel = document.getElementById('marcosSel');
   if(sel){
-    if(sel.options.length <= 1){   // monta a lista de SOP uma vez, na ordem de GP
-      const sops = [...new Set(Object.values(real).map(r=>r.sop).filter(Boolean))].sort((a,b)=>gpN(a)-gpN(b) || a.localeCompare(b));
+    if(!sel.dataset.pronto){ sel.dataset.pronto = '1'; sel.addEventListener('change', ()=>renderSopMarcos(sel.value)); }
+    if(sel.dataset.unid !== FILTRO_UNID || sel.options.length <= 1){   // lista de SOP da unidade, na ordem de GP
+      sel.dataset.unid = FILTRO_UNID;
+      const sops = [...new Set(Object.values(real).map(r=>r.sop).filter(sopNaUnidade))].sort((a,b)=>gpN(a)-gpN(b) || a.localeCompare(b));
+      sel.innerHTML = '<option value="__ALL__">Todos os SOP (por GP)</option>';
       sops.forEach(sp=>{ const o = document.createElement('option'); o.value = sp; o.textContent = (GP_SOP[sp] ? GP_SOP[sp] + ' · ' : '') + sp; sel.appendChild(o); });
-      sel.addEventListener('change', ()=>renderSopMarcos(sel.value));
     }
-    sel.value = sopCode;
+    sel.value = [...sel.options].some(o=>o.value===sopCode) ? sopCode : '__ALL__';
   }
   const tag = document.getElementById('marcosTag');
-  if(tag) tag.textContent = todos ? 'TODOS OS SOP' : sopCode + (GP_SOP[sopCode] ? ' · ' + GP_SOP[sopCode] : '');
+  if(tag) tag.textContent = todos ? 'TODOS OS SOP' + (FILTRO_UNID ? ' · U-' + FILTRO_UNID : '') : sopCode + (GP_SOP[sopCode] ? ' · ' + GP_SOP[sopCode] : '');
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const d0 = new Date(2026,9,1), d1 = new Date(2027,10,1), span = d1 - d0;
   const pos = d => Math.max(0, Math.min(100, (d - d0) / span * 100));
   const dt = s => s ? new Date(s + 'T00:00:00') : null;
-  const itens = Object.keys(real).filter(k => todos || real[k].sop === sopCode).map(k => {
+  const itens = Object.keys(real).filter(k => todos ? sopNaUnidade(real[k].sop) : real[k].sop === sopCode).map(k => {
     const r = real[k], p = MARCOS_P6[k] || {};
     return { sth:k, sop:r.sop, n:r.n, ton:r.ton, mp:dt(p.mont && p.mont[1]), tp:dt(p.th && p.th[1]), mr:dt(r.mont), tr:dt(r.th) };
   }).sort((a,b)=> (todos ? gpN(a.sop)-gpN(b.sop) || a.sop.localeCompare(b.sop) : 0) || (a.tp||new Date(9999,0,1)) - (b.tp||new Date(9999,0,1)));
@@ -2183,6 +2199,7 @@ function renderSopMarcos(sopCode){
 }
 
 function renderSopCurve(sopCode){
+  _sopAtual = sopCode;
   try{ renderSopMarcos(sopCode); }catch(e){ console.error('Marcos por STH:', e); }
   const bySop = DATA.by_sop || {};
   const curve = bySop[sopCode];
