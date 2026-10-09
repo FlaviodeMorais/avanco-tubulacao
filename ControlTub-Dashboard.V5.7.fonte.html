@@ -438,6 +438,7 @@ main{
   .summary-table th.base-col{ background:#006B35; color:#fff; }
   .summary-table th.base-col small{ color:#E8F3EC; font-weight:400; }
   .summary-table .plan-row td{ color:#675C53; font-style:italic; font-size:.92em; }
+  .summary-table tr td.txt-azul{ color:var(--azul); font-weight:700; font-style:normal; }
   .summary-table .dev-neg{ color:#B3261E; font-weight:600; }
   .summary-table .dev-pos{ color:#008542; font-weight:600; }
   .summary-table .future-col{ color:#B5ADA3; }
@@ -2002,7 +2003,7 @@ function renderSummaryTable(){
     let tr = '<tr><td>'+dot+stage+'</td><td class="base-col">'+fmtTon(view.base[stage])+'</td>' +
       view.series[stage].map((v,i)=>cell(v,i)).join('') + '</tr>';
     if(view.plan[stage]){
-      tr += '<tr class="plan-row"><td>&nbsp;&nbsp;↳ Book B</td><td class="base-col"></td>' +
+      tr += '<tr class="plan-row"><td class="txt-azul">&nbsp;&nbsp;↳ Book B</td><td class="base-col"></td>' +
         view.plan[stage].map((v,i)=>cell(v,i)).join('') + '</tr>';
     }
     return tr;
@@ -2038,7 +2039,7 @@ function renderSummaryPxR(view, months, curIdx, cell){
       `<td class="${v<0?'dev-neg':'dev-pos'}${i===curIdx?' latest-col':''}">${v>0?'+':''}${fmtTon(v)}</td>`;
     return `<tr><td rowspan="3">${dot}${stage}</td><td>Planejado</td><td class="base-col">${fmtTon(view.base[stage])}</td>` +
         view.plan[stage].map((v,i)=>cell(v,i)).join('') + '</tr>' +
-      '<tr><td>Realizado</td><td class="base-col">'+fmtTon(view.base[stage])+'</td>' + view.series[stage].map((v,i)=>cell(v,i)).join('') + '</tr>' +
+      '<tr><td class="txt-azul">Realizado</td><td class="base-col">'+fmtTon(view.base[stage])+'</td>' + view.series[stage].map((v,i)=>cell(v,i)).join('') + '</tr>' +
       '<tr class="plan-row"><td>Desvio</td><td class="base-col"></td>' + dev.map(devCell).join('') + '</tr>';
   }).join('');
   document.getElementById('summaryTable').innerHTML = thead + '<tbody>' + rows + '</tbody>';
