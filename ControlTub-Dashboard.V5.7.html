@@ -296,6 +296,10 @@ main{
 .marcos-resumo small{ color:var(--text-muted); font-size:11px; }
 .marcos-linha{ position:relative; font-size:11px; max-height:560px; overflow-y:auto; }
 .marcos-linha .mrow.eixo{ position:sticky; top:0; background:var(--bg-panel); z-index:2; border-top:0; }
+.mt-zoom{ display:flex; align-items:center; gap:6px; margin:0 0 6px; font-size:12px; }
+.mt-zoom button{ font:inherit; min-width:34px; padding:4px 10px; border:1px solid var(--hairline); background:#fff; cursor:pointer; border-radius:3px; }
+.mt-zoom button:hover{ border-color:var(--verde); color:var(--verde); }
+.mt-zoom small{ color:var(--text-muted); margin-left:8px; }
 .mt-wrap{ position:relative; overflow-x:auto; overflow-y:hidden; border:1px solid var(--hairline); background:var(--bg-shade); margin-bottom:6px; }
 .mt{ position:relative; }
 .mt .eixo{ position:absolute; left:0; right:0; height:3px; background:#1A1A1A; }
@@ -672,6 +676,14 @@ main{
     </div>
     <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select><label for="marcosSel" style="margin-left:12px">Mostrar:</label>
       <select id="marcosSel"><option value="__ALL__">Todos os SOP (por GP)</option></select></div>
+    <div class="mt-zoom" role="group" aria-label="Zoom da linha do tempo">
+      <span>Zoom:</span>
+      <button type="button" id="mtZoomOut" title="Diminuir (mais espaço comprimido)">−</button>
+      <button type="button" id="mtZoomVal" title="Voltar a 100%">100%</button>
+      <button type="button" id="mtZoomIn" title="Aumentar (mais espaço entre as caixas)">+</button>
+      <button type="button" id="mtZoomFit" title="Ajustar o ano inteiro à largura da tela">Ano inteiro</button>
+      <small>Ctrl + roda do mouse também dá zoom</small>
+    </div>
     <div id="marcosTimeline" class="mt-wrap"></div>
     <p class="panel-sub" style="margin:4px 0 12px">Cada caixa é um SOP, posicionado no término previsto do último teste hidrostático dele. Clique numa caixa para ver os STH abaixo.</p>
     <div id="marcosResumo" class="marcos-resumo"></div>
@@ -867,6 +879,7 @@ const ETAPAS_OCULTAS = ['Programado', 'Visual de Ajuste', 'Liberado END'];
 const etapasVisiveis = () => DATA.stages.filter(st => !ETAPAS_OCULTAS.includes(st));
 let DEPARA_SPOOL = {}; // de_para_spool.json — SOP/SUBSOP/STH novos por spool (CONTROLE GERAL DE STH-HC²), chave iso|spool
 let _sopAtual = null;
+let MT_ZOOM = 1, _mtSop = '__ALL__'; const MT_ZOOMS = [0.3,0.5,0.75,1,1.5,2,3,4];
 let FILTRO_UNID = ''; // '' = todas | '4710' | '4730' — filtro de Avanço por SOP e Marcos por STH (unidade pelo código do SOP: SOP-U-4710-…)
 const sopNaUnidade = sop => !FILTRO_UNID || String(sop||'').includes('-' + FILTRO_UNID + '-');
 let GP_SOP = {}; // gp_sop.json — grupo de prioridade (GP) de cada SOP, da rede de precedência (CCM das malhas)
@@ -2176,7 +2189,7 @@ function renderMarcosTimeline(sopSel){
   const lista = Object.values(por).filter(o=>o.fim).sort((a,b)=>a.fim-b.fim);
   const semData = Object.values(por).length - lista.length;
   if(!lista.length){ wrap.innerHTML = '<p class="panel-sub" style="padding:14px">Sem SOP com teste previsto no P6.</p>'; return; }
-  const W = Math.max(wrap.clientWidth || 1500, FILTRO_UNID ? 3000 : 4400), PAD = 60, usable = W - 2*PAD;  // eixo largo, com rolagem horizontal, para as caixas não se empilharem
+  const W = Math.max(wrap.clientWidth || 1500, Math.round((FILTRO_UNID ? 3000 : 4400) * MT_ZOOM)), PAD = 60, usable = W - 2*PAD;  // eixo largo, com rolagem horizontal, para as caixas não se empilharem
   const d0 = new Date(2026,9,1), d1 = new Date(2027,10,1), span = d1 - d0;
   const x = d => PAD + Math.max(0, Math.min(1, (d - d0) / span)) * usable;
   const CW = 98, CH = 38, GAP = 4;
@@ -2212,13 +2225,38 @@ function renderMarcosTimeline(sopSel){
   });
   wrap.innerHTML = h + '</div>' + (semData ? `<p class="panel-sub" style="padding:4px 10px">${semData} SOP sem teste previsto no P6 não aparecem na linha.</p>` : '');
   if(!wrap.dataset.rolou){ wrap.dataset.rolou = '1'; wrap.scrollLeft = Math.max(0, x(lista[0].fim) - 120); }
+  const zv = document.getElementById('mtZoomVal'); if(zv) zv.textContent = Math.round(MT_ZOOM*100) + '%';
   wrap.querySelectorAll('.cx').forEach(c=>c.addEventListener('click', ()=>{
     const sel = document.getElementById('marcosSel');
     if(sel){ sel.value = c.dataset.sop; renderSopMarcos(c.dataset.sop); }
   }));
 }
 
+// zoom: mantém o ponto central visível no mesmo lugar do eixo
+function mtSetZoom(z, ancora){
+  z = Math.max(MT_ZOOMS[0], Math.min(MT_ZOOMS[MT_ZOOMS.length-1], z));
+  const wrap = document.getElementById('marcosTimeline'); if(!wrap || z === MT_ZOOM) return;
+  const larg = wrap.scrollWidth || 1, vis = wrap.clientWidth || 1;
+  const px = (ancora == null ? vis/2 : ancora);
+  const frac = (wrap.scrollLeft + px) / larg;
+  MT_ZOOM = z;
+  renderMarcosTimeline(_mtSop);
+  wrap.scrollLeft = Math.max(0, frac * wrap.scrollWidth - px);
+}
+const mtPasso = dir => { const i = MT_ZOOMS.findIndex(v=>v >= MT_ZOOM - 1e-9); return MT_ZOOMS[Math.max(0, Math.min(MT_ZOOMS.length-1, i + dir))]; };
+document.getElementById('mtZoomIn').addEventListener('click', ()=>mtSetZoom(mtPasso(1)));
+document.getElementById('mtZoomOut').addEventListener('click', ()=>mtSetZoom(mtPasso(-1)));
+document.getElementById('mtZoomVal').addEventListener('click', ()=>mtSetZoom(1));
+document.getElementById('mtZoomFit').addEventListener('click', ()=>mtSetZoom(MT_ZOOMS[0]));
+document.getElementById('marcosTimeline').addEventListener('wheel', e=>{
+  if(!e.ctrlKey) return;            // sem Ctrl, a roda segue rolando a página
+  e.preventDefault();
+  const r = e.currentTarget.getBoundingClientRect();
+  mtSetZoom(mtPasso(e.deltaY < 0 ? 1 : -1), e.clientX - r.left);
+}, { passive:false });
+
 function renderSopMarcos(sopCode){
+  _mtSop = sopCode;
   try{ renderMarcosTimeline(sopCode); }catch(e){ console.error('Linha do tempo de marcos:', e); }
   const box = document.getElementById('marcosLinha'), resumo = document.getElementById('marcosResumo');
   if(!box) return;
