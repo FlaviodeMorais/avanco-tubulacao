@@ -13,7 +13,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 FONTE = RAIZ / 'ControlTub-Dashboard.V5.5.html'
-JSONS = ['data.json', 'juntas.json', 'cronograma.json', 'excluidos.json', 'ac_pequeno.json', 'de_para_spool.json', 'gp_sop.json']
+JSONS = ['data.json', 'juntas.json', 'cronograma.json', 'excluidos.json', 'ac_pequeno.json', 'de_para_spool.json', 'gp_sop.json', 'marcos_sth.json']
 
 
 def main(libs, saida):

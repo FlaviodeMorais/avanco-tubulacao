@@ -220,6 +220,16 @@ def le_spools(path):
 
 def main(p6, xlsx, depara, dst):
     atv = le_p6(p6)
+    # Marcos por STH (início/término da montagem de tubulação e do teste hidrostático no P6), p/ o gráfico por SOP
+    marcos = defaultdict(dict)
+    for (sth_p, nome_p, _m), (ini_p, fim_p) in atv.items():
+        chave = {'Montagem de Tubulação': 'mont', 'Testar, Lavar, Remontar': 'th'}.get(nome_p)
+        if chave:
+            ini0, fim0 = marcos[sth_p].get(chave, (ini_p, fim_p))
+            marcos[sth_p][chave] = (min(ini0, ini_p), max(fim0, fim_p))
+    json.dump({'fonte': 'Primavera P6: Montagem de Tubulação e Testar, Lavar, Remontar por STH',
+               'sth': {k: {c: [v[0].isoformat(), v[1].isoformat()] for c, v in d.items()} for k, d in marcos.items()}},
+              open('marcos_sth.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     exato, base = le_depara(depara)
     spools = le_spools(xlsx)
     # SOP / STH novos por spool (CONTROLE GERAL DE STH-HC2, via scripts/gerar_de_para_spool.py);

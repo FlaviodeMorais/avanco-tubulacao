@@ -238,6 +238,31 @@ main{
 .detail-table tbody tr:hover td{ background:var(--bg-shade); }
 #sopAvancoBody tr{ cursor:pointer; }
 #sopAvancoBody tr.gp-head{ cursor:default; }
+:root{ --vermelho-atraso:#D32F2F; }
+.marcos-resumo{ display:flex; gap:28px; flex-wrap:wrap; margin:6px 0 14px; }
+.marcos-resumo .mr{ min-width:260px; flex:1; }
+.marcos-resumo .mr b{ font-size:12px; letter-spacing:.3px; text-transform:uppercase; color:var(--text-muted); }
+.marcos-resumo .barra{ position:relative; height:12px; background:#E4E2DD; border-radius:3px; margin:6px 0 4px; }
+.marcos-resumo .barra i{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; }
+.marcos-resumo .barra u{ position:absolute; top:-3px; bottom:-3px; width:2px; background:#1A1A1A; }
+.marcos-resumo small{ color:var(--text-muted); font-size:11px; }
+.marcos-linha{ position:relative; font-size:11px; }
+.mrow{ display:grid; grid-template-columns:200px 1fr; align-items:center; border-top:1px solid var(--hairline); min-height:26px; }
+.mrow .lbl{ padding:2px 8px 2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; }
+.mrow .lbl small{ font-weight:400; color:var(--text-muted); }
+.mrow .trk{ position:relative; height:26px; }
+.mrow.eixo .trk{ height:20px; }
+.mrow.eixo .trk span{ position:absolute; top:3px; font-size:10px; color:var(--text-muted); transform:translateX(-50%); }
+.mrow .trk .lig{ position:absolute; top:12px; height:2px; background:#BCBDBC; }
+.mrow .trk .gr{ position:absolute; top:0; bottom:0; width:1px; background:var(--hairline); }
+.mrow .trk .hj{ position:absolute; top:0; bottom:0; width:2px; background:#1A1A1A55; }
+.mk{ display:inline-block; width:11px; height:11px; border:2px solid; box-sizing:border-box; vertical-align:-1px; }
+.mk-mont{ border-color:var(--verde); border-radius:2px; } .mk-th{ border-color:#EDA100; border-radius:50%; }
+.trk .m{ position:absolute; top:7px; width:12px; height:12px; border:2px solid; box-sizing:border-box; background:#fff; transform:translateX(-50%); }
+.trk .m.mont{ border-radius:2px; border-color:var(--verde); } .trk .m.th{ border-radius:50%; border-color:#EDA100; }
+.trk .m.mont.ok{ background:var(--verde); } .trk .m.th.ok{ background:#EDA100; }
+.trk .m.atraso{ border-color:var(--vermelho-atraso); } .trk .m.ok.atraso{ background:var(--vermelho-atraso); }
+.marcos-legenda{ display:flex; gap:18px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--text-muted); }
 #sopAvancoBody tr.gp-head td{ background:#F1EFE9; color:var(--verde); font-weight:700; letter-spacing:.3px; padding:7px 12px; }
 #sopAvancoBody tr.selected td{ background:#E3F3E9; }
 #sopAvancoBody tr.selected td:first-child{ color:var(--verde); }
@@ -567,6 +592,21 @@ main{
     </div>
   </section>
 
+  <section class="panel" id="marcosSection">
+    <div class="panel-head">
+      <div>
+        <h2>Marcos por STH <span class="mono-tag" id="marcosTag">—</span></h2>
+        <p class="panel-sub">Montagem concluída e teste hidrostático por STH — previsto (P6) × realizado. O teste só acontece depois da montagem do STH. Troque o SOP clicando na tabela acima.</p>
+      </div>
+    </div>
+    <div id="marcosResumo" class="marcos-resumo"></div>
+    <div id="marcosLinha" class="marcos-linha"></div>
+    <div class="marcos-legenda">
+      <span><i class="mk mk-mont"></i> Montagem</span><span><i class="mk mk-th"></i> Teste hidrostático</span>
+      <span>○ previsto</span><span>● realizado</span><span style="color:var(--vermelho-atraso)">● atrasado / fora de sequência</span>
+    </div>
+  </section>
+
   <section class="panel" hidden data-oculto="v5.6">
     <div class="panel-head">
       <div>
@@ -751,6 +791,7 @@ const ETAPAS_OCULTAS = ['Programado', 'Visual de Ajuste', 'Liberado END'];
 const etapasVisiveis = () => DATA.stages.filter(st => !ETAPAS_OCULTAS.includes(st));
 let DEPARA_SPOOL = {}; // de_para_spool.json — SOP/SUBSOP/STH novos por spool (CONTROLE GERAL DE STH-HC²), chave iso|spool
 let GP_SOP = {}; // gp_sop.json — grupo de prioridade (GP) de cada SOP, da rede de precedência (CCM das malhas)
+let MARCOS_P6 = {}; // marcos_sth.json — montagem e teste hidrostático previstos por STH (P6)
 let EXCLUIR_SPOOLS = new Set(); // excluidos.json — spools cancelados (iso|spool) (gerado por scripts/gerar_cronograma.py)
 // Escopo: ficam de fora as linhas da 6100 e tudo que estiver cancelado.
 function spoolExcluido(linha, sfab, smon, iso, spool){
@@ -1057,8 +1098,20 @@ function computeDashboardData(rows){
     .sort((a,b)=>b.peso_total-a.peso_total)
     .slice(0,20);
 
+  // ---- Marcos realizados por STH: montagem = todos os spools com Liberado END; teste = todos com Teste Hidrostático.
+  // Data do marco = a do último spool. O teste só vale depois da montagem do STH.
+  const sth_marcos = {};
+  const okD = d => d instanceof Date && !isNaN(d);
+  const porSth = new Map();
+  rows.forEach(r=>{ if(!r.sth) return; if(!porSth.has(r.sth)) porSth.set(r.sth, []); porSth.get(r.sth).push(r); });
+  porSth.forEach((rs, sth)=>{
+    const fim = est => rs.every(r=>okD(r.stageDates[est])) ? new Date(Math.max(...rs.map(r=>r.stageDates[est].getTime()))).toISOString().slice(0,10) : null;
+    sth_marcos[sth] = { sop: rs[0].sop, n: rs.length, ton: +(rs.reduce((a,r)=>a+r.peso,0)/1000).toFixed(3),
+                        mont: fim('Liberado END'), th: fim('Teste Hidrostático') };
+  });
+
   return {
-    months, days_in_month, stages: STAGE_NAMES, overall, by_unidade, escopo_filtrado: true, ac_pequeno_zerado: true,
+    months, days_in_month, stages: STAGE_NAMES, overall, sth_marcos, by_unidade, escopo_filtrado: true, ac_pequeno_zerado: true,
     kpis: {
       total_ton: overall.total, total_spools, nao_iniciados, nao_iniciados_ton,
       sop_total_n: sopMap.size, sop_avg_pct, sop_completos, sop_prontos_ton,
@@ -2016,7 +2069,55 @@ function renderLinhasRanking(){
 
 // ---------- Curva de Avanço por SOP (drill-down ao clicar numa linha da tabela) ----------
 let chartSopCurve = null;
+// ---------- Marcos por STH (montagem e teste hidrostático) do SOP selecionado ----------
+function renderSopMarcos(sopCode){
+  const box = document.getElementById('marcosLinha'), resumo = document.getElementById('marcosResumo');
+  if(!box) return;
+  const tag = document.getElementById('marcosTag'); if(tag) tag.textContent = sopCode + (GP_SOP[sopCode] ? ' · ' + GP_SOP[sopCode] : '');
+  const real = DATA.sth_marcos || {};
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const d0 = new Date(2026,9,1), d1 = new Date(2027,10,1), span = d1 - d0;
+  const pos = d => Math.max(0, Math.min(100, (d - d0) / span * 100));
+  const dt = s => s ? new Date(s + 'T00:00:00') : null;
+  const itens = Object.keys(real).filter(k => real[k].sop === sopCode).map(k => {
+    const r = real[k], p = MARCOS_P6[k] || {};
+    return { sth:k, n:r.n, ton:r.ton, mp:dt(p.mont && p.mont[1]), tp:dt(p.th && p.th[1]), mr:dt(r.mont), tr:dt(r.th) };
+  }).sort((a,b)=> (a.tp||new Date(9999,0,1)) - (b.tp||new Date(9999,0,1)));
+  if(!itens.length){ resumo.innerHTML = ''; box.innerHTML = '<p class="panel-sub">Sem STH para este SOP.</p>'; return; }
+  const totTon = itens.reduce((a,i)=>a+i.ton,0) || 1;
+  const pct = (fn) => itens.filter(fn).reduce((a,i)=>a+i.ton,0) / totTon * 100;
+  const cards = [
+    ['Montagem concluída', 'var(--verde)', pct(i=>i.mr), pct(i=>i.mp && i.mp<=hoje)],
+    ['Teste hidrostático', '#EDA100', pct(i=>i.tr), pct(i=>i.tp && i.tp<=hoje)],
+  ];
+  const f1 = v => v.toFixed(1).replace('.',',') + '%';
+  resumo.innerHTML = cards.map(([t,c,r,p])=>`<div class="mr"><b>${t}</b>
+    <div class="barra"><i style="width:${Math.min(r,100)}%;background:${c}"></i><u style="left:${Math.min(p,100)}%"></u></div>
+    <small>Realizado ${f1(r)} · Previsto até hoje ${f1(p)} (por peso, ${itens.length} STH)</small></div>`).join('');
+  const meses = []; for(let d=new Date(d0); d<d1; d.setMonth(d.getMonth()+1)) meses.push(new Date(d));
+  const grade = meses.map(m=>`<div class="gr" style="left:${pos(m)}%"></div>`).join('');
+  const hj = (hoje>=d0 && hoje<d1) ? `<div class="hj" style="left:${pos(hoje)}%" title="Hoje"></div>` : '';
+  const eixo = `<div class="mrow eixo"><div class="lbl"></div><div class="trk">${meses.map(m=>`<span style="left:${pos(new Date(m.getFullYear(),m.getMonth(),15))}%">${MES_ABR[m.getMonth()]}/${String(m.getFullYear()).slice(2)}</span>`).join('')}</div></div>`;
+  const fmt = d => d ? d.toLocaleDateString('pt-BR') : '—';
+  const marco = (tipo, prev, rl, foraSeq) => {
+    // realizado: marcador cheio na data real; previsto: vazio na data prevista (vermelho se já passou sem realizar)
+    const d = rl || prev; if(!d) return '';
+    const atraso = rl ? foraSeq : (prev < hoje);
+    const nome = tipo==='mont' ? 'Montagem' : 'Teste hidrostático';
+    return `<span class="m ${tipo} ${rl?'ok':''} ${atraso?'atraso':''}" style="left:${pos(d)}%" title="${nome}: previsto ${fmt(prev)}${rl?' · realizado '+fmt(rl):''}${foraSeq?' · fora de sequência':''}"></span>`;
+  };
+  const linhas = itens.map(i=>{
+    const foraSeq = !!(i.tr && (!i.mr || i.tr < i.mr));
+    const a = i.mp || i.mr, b = i.tp || i.tr;
+    const lig = (a && b) ? `<div class="lig" style="left:${pos(a)}%;width:${Math.max(0,pos(b)-pos(a))}%"></div>` : '';
+    return `<div class="mrow"><div class="lbl" title="${escapeHtml(i.sth)}">${escapeHtml(i.sth)} <small>${fmtTonCima(i.ton)} t · ${i.n} sp</small></div>
+      <div class="trk">${grade}${hj}${lig}${marco('mont', i.mp, i.mr, false)}${marco('th', i.tp, i.tr, foraSeq)}</div></div>`;
+  }).join('');
+  box.innerHTML = eixo + linhas;
+}
+
 function renderSopCurve(sopCode){
+  try{ renderSopMarcos(sopCode); }catch(e){ console.error('Marcos por STH:', e); }
   const bySop = DATA.by_sop || {};
   const curve = bySop[sopCode];
   const tagEl = document.getElementById('sopCurveTag');
@@ -2746,6 +2847,9 @@ async function boot(){
 
   try { GP_SOP = (await fetchJson('gp_sop.json')).gp || {}; }
   catch(err){ console.warn('gp_sop.json indisponível — sem GP:', err); }
+
+  try { MARCOS_P6 = (await fetchJson('marcos_sth.json')).sth || {}; }
+  catch(err){ console.warn('marcos_sth.json indisponível — sem marcos previstos:', err); }
 
   try { EXCLUIR_SPOOLS = new Set((await fetchJson('excluidos.json')).spools_cancelados); }
   catch(err){ console.warn('excluidos.json indisponível:', err); }
