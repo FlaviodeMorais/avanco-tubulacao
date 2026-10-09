@@ -2316,8 +2316,8 @@ function renderSopCurve(){
   const nomeBook = st => 'Book B ' + (st === 'Fabricado' ? 'Fabricação' : st);
   const pctDe = (sp, st) => CRONO && CRONO.plano_sop && CRONO.plano_sop[sp] && CRONO.plano_sop[sp][st];
   const real = [], plano = [];
-  // mesmas etapas e cores do Rundown geral: restante realizado e restante previsto (Book B) por etapa
-  etapasVisiveis().forEach(st=>{
+  // etapas do Rundown por SOP (Fabricação, Pré-Montagem e Teste Hidrostático), com as cores do Rundown geral: restante realizado e restante previsto (Book B)
+  ['Fabricado','Pré-Montagem','Teste Hidrostático'].filter(st=>etapasVisiveis().includes(st)).forEach(st=>{
     const serie = sp => bySop[sp].series[st];
     const total = curve.total;
     const base = alvos.reduce((a,sp)=>a + serie(sp)[idxBase], 0);
