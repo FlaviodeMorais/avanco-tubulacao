@@ -8,12 +8,12 @@ Uso: python3 scripts/gerar_html_standalone.py LIBS_DIR [saida.html]
 Embute as bibliotecas e os JSONs (data, juntas, cronograma, excluidos, ac_pequeno) no próprio
 arquivo; o fetchJson do painel passa a ler primeiro dos dados embutidos.
 """
-import json, re, sys
+import datetime, json, re, sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 FONTE = RAIZ / 'ControlTub-Dashboard.V5.8.fonte.html'
-JSONS = ['data.json', 'juntas.json', 'cronograma.json', 'excluidos.json', 'ac_pequeno.json', 'de_para_spool.json', 'gp_sop.json', 'marcos_sth.json']
+JSONS = ['data.json', 'juntas.json', 'cronograma.json', 'excluidos.json', 'ac_pequeno.json', 'de_para_spool.json', 'gp_sop.json', 'marcos_sth.json', 'juntas_historico.json']
 
 
 def main(libs, saida):
@@ -37,7 +37,7 @@ def main(libs, saida):
     emb = json.dumps(dados, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     marcador = '<script>\n'
     i = html.index(marcador, html.index('</head>')) if '</head>' in html else html.index(marcador)
-    html = html[:i] + '<script>window.__EMBUTIDO__=' + emb + ';</script>\n' + html[i:]
+    html = html[:i] + '<script>window.__BUILD__=' + json.dumps(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')) + ';window.__EMBUTIDO__=' + emb + ';</script>\n' + html[i:]
     antigo = "async function fetchJson(url){\n  const res"
     assert antigo in html
     html = html.replace(antigo, "async function fetchJson(url){\n  if(window.__EMBUTIDO__ && window.__EMBUTIDO__[url]) return window.__EMBUTIDO__[url];\n  const res")

@@ -1302,8 +1302,7 @@ function parseJuntasWorkbook(wb){
 async function applyJuntasHistorico(rows){
   let historico = {};
   try{
-    const res = await fetch('juntas_historico.json', { cache: 'no-cache' });
-    if(res.ok) historico = await res.json();
+    historico = await fetchJson('juntas_historico.json');
   }catch(e){
     console.error('Falha ao carregar juntas_historico.json — seguindo sem o backfill histórico de reparo/liberação:', e);
   }
@@ -1515,9 +1514,10 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
       initJuntas();
       saveToLocalStorage(LS_KEY_JUNTAS, newJuntas);
       saveMeta({ juntasFile: file.name, juntasAt: new Date().toISOString() });
-      showUploadStatus(`${fmtInt(jRows.length)} juntas carregadas de "${escapeHtml(file.name)}" — publicando para todos…`, true, 'MAPA DE JUNTAS');
+      showUploadStatus(`${fmtInt(jRows.length)} juntas carregadas de "${escapeHtml(file.name)}"${window.__EMBUTIDO__ ? '' : ' — publicando para todos…'}`, true, 'MAPA DE JUNTAS');
       const pub = await publishToRepo({ juntas: newJuntas });
       showUploadStatus(
+        pub.skipped ? `${fmtInt(jRows.length)} juntas carregadas de "${escapeHtml(file.name)}".` :
         pub.ok
           ? `${fmtInt(jRows.length)} juntas carregadas e publicadas — todos que abrirem o link verão a atualização em ~1 min.`
           : `${fmtInt(jRows.length)} juntas carregadas (salvas neste navegador), mas não foi possível publicar para todos agora (${escapeHtml(pub.error)}). Tente de novo em instantes.`,
@@ -1532,9 +1532,10 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
       initFromData(newData);
       saveToLocalStorage(LS_KEY_DATA, newData);
       saveMeta({ dataFile: file.name, dataAt: new Date().toISOString() });
-      showUploadStatus(`${fmtInt(spoolRows.length)} spools carregados de "${escapeHtml(file.name)}" — publicando para todos…`, true, 'MAPA DE SPOOLS');
+      showUploadStatus(`${fmtInt(spoolRows.length)} spools carregados de "${escapeHtml(file.name)}"${window.__EMBUTIDO__ ? '' : ' — publicando para todos…'}`, true, 'MAPA DE SPOOLS');
       const pub = await publishToRepo({ data: newData });
       showUploadStatus(
+        pub.skipped ? `${fmtInt(spoolRows.length)} spools carregados de "${escapeHtml(file.name)}".` :
         pub.ok
           ? `${fmtInt(spoolRows.length)} spools carregados e publicados — todos que abrirem o link verão a atualização em ~1 min.`
           : `${fmtInt(spoolRows.length)} spools carregados (salvos neste navegador), mas não foi possível publicar para todos agora (${escapeHtml(pub.error)}). Tente de novo em instantes.`,
@@ -1562,6 +1563,7 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
 const PUBLISH_ENDPOINT = '/api/publish';
 
 async function publishToRepo(payload){
+  if(window.__EMBUTIDO__) return { ok:false, skipped:true };   // arquivo .html: só atualiza neste computador, sem publicar
   try{
     const res = await fetch(PUBLISH_ENDPOINT, {
       method: 'POST',
@@ -3055,6 +3057,12 @@ async function boot(){
     if(_savedJuntas){ JUNTAS = _savedJuntas; juntasFromCache = true; }
   }
 
+  // Arquivo .html (dados embutidos): se você carregou uma planilha depois que o arquivo foi gerado, ela continua valendo neste computador
+  if(window.__EMBUTIDO__){
+    const meta = loadFromLocalStorage(LS_KEY_META) || {}, build = window.__BUILD__ || '';
+    if(_savedData && _savedData.sth_marcos && meta.dataAt && meta.dataAt > build){ DATA = _savedData; }
+    if(_savedJuntas && _savedJuntas.kpis && _savedJuntas.kpis.sold_base !== undefined && meta.juntasAt && meta.juntasAt > build){ JUNTAS = _savedJuntas; }
+  }
   if(DATA) initFromData(DATA);
   if(JUNTAS) initJuntas();
 
