@@ -483,6 +483,12 @@ main{
         Baixar Dados (.zip)
       </button>
     </div>
+    <div class="topbar-field" id="salvarPainelCampo" hidden>
+      <label class="field-label">Compartilhar</label>
+      <button id="salvarPainelBtn" class="upload-btn publish-btn" type="button" title="Gera um novo arquivo .html já com as planilhas carregadas — é só substituir o arquivo na pasta compartilhada">
+        Salvar painel atualizado (.html)
+      </button>
+    </div>
   </div>
 </header>
 </div>
@@ -1582,6 +1588,35 @@ async function publishToRepo(payload){
 // só pra guardar/usar fora do painel (ex.: uma futura migração pra BI).
 // Não tem relação com a publicação — é 100% local, sem chamada de rede.
 // ============================================================
+// ============================================================
+// SALVAR PAINEL ATUALIZADO — só no arquivo .html (dados embutidos). Remonta o próprio arquivo com os
+// dados atuais (planilhas carregadas) para substituir o da pasta compartilhada; sem servidor.
+// ============================================================
+(function(){
+  if(!window.__MODELO__) return;
+  const campo = document.getElementById('salvarPainelCampo'); if(campo) campo.hidden = false;
+  document.getElementById('salvarPainelBtn').addEventListener('click', async ()=>{
+    try{
+      if(typeof DecompressionStream === 'undefined') throw new Error('navegador sem suporte (use Chrome ou Edge atualizados)');
+      const bin = atob(window.__MODELO__), bytes = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+      const modelo = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+      const emb = Object.assign({}, window.__EMBUTIDO__, { 'data.json': DATA, 'juntas.json': JUNTAS });
+      const ph = c => '/*' + c + '*/' + 'null';
+      const html = modelo
+        .replace(ph('B'), () => JSON.stringify(new Date().toISOString()))
+        .replace(ph('D'), () => JSON.stringify(emb).replace(/<\//g, '<\\/'))
+        .replace(ph('M'), () => JSON.stringify(window.__MODELO__));
+      const url = URL.createObjectURL(new Blob([html], { type:'text/html;charset=utf-8' }));
+      const a = document.createElement('a'); a.href = url; a.download = 'ControlTub-Dashboard.V5.8.html';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      showUploadStatus('Painel salvo com os dados atuais. Substitua o arquivo na pasta compartilhada para todos verem.', true);
+    }catch(err){
+      showUploadStatus('Não foi possível salvar o painel: ' + escapeHtml(err.message), false);
+    }
+  });
+})();
+
 document.getElementById('downloadZipBtn').addEventListener('click', async ()=>{
   if(!DATA || !JUNTAS){ showUploadStatus('Aguarde os dados carregarem antes de baixar.', false); return; }
 

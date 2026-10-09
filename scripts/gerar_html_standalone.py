@@ -8,7 +8,7 @@ Uso: python3 scripts/gerar_html_standalone.py LIBS_DIR [saida.html]
 Embute as bibliotecas e os JSONs (data, juntas, cronograma, excluidos, ac_pequeno) no próprio
 arquivo; o fetchJson do painel passa a ler primeiro dos dados embutidos.
 """
-import datetime, json, re, sys
+import base64, datetime, gzip, json, re, sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -35,13 +35,20 @@ def main(libs, saida):
         if p.exists():
             dados[nome] = json.loads(p.read_text(encoding='utf-8'))
     emb = json.dumps(dados, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    # Modelo do arquivo (sem os dados), compactado dentro do próprio HTML: o botão "Salvar painel atualizado"
+    # remonta um HTML novo com as planilhas carregadas, sem servidor e sem internet.
     marcador = '<script>\n'
     i = html.index(marcador, html.index('</head>')) if '</head>' in html else html.index(marcador)
-    html = html[:i] + '<script>window.__BUILD__=' + json.dumps(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')) + ';window.__EMBUTIDO__=' + emb + ';</script>\n' + html[i:]
     antigo = "async function fetchJson(url){\n  const res"
     assert antigo in html
     html = html.replace(antigo, "async function fetchJson(url){\n  if(window.__EMBUTIDO__ && window.__EMBUTIDO__[url]) return window.__EMBUTIDO__[url];\n  const res")
     html = html.replace('V5.8.fonte', 'V5.8')
+    i = html.index(marcador, html.index('</head>')) if '</head>' in html else html.index(marcador)
+    slot = '<script>window.__BUILD__=/*B*/null;window.__EMBUTIDO__=/*D*/null;window.__MODELO__=/*M*/null;</script>\n'
+    modelo = html[:i] + slot + html[i:]
+    modelo_b64 = base64.b64encode(gzip.compress(modelo.encode('utf-8'), 9)).decode('ascii')
+    build = json.dumps(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z'))
+    html = modelo.replace('/*B*/null', build, 1).replace('/*D*/null', emb, 1).replace('/*M*/null', json.dumps(modelo_b64), 1)
     Path(saida).write_text(html, encoding='utf-8')
     print(saida, round(len(html) / 1e6, 2), 'MB')
 
