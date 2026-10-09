@@ -531,7 +531,6 @@ main{
     <div class="panel-head">
       <div>
         <h2>Curva de Avanço <span class="mono-tag">S-CURVE</span></h2>
-        <p class="panel-sub">Peso acumulado por etapa de montagem — clique na legenda para isolar uma etapa</p>
       </div>
       <div class="mode-toggle" id="modeToggle">
         <button class="mode-btn active" data-mode="peso">Peso (ton)</button>
@@ -547,7 +546,6 @@ main{
     <div class="panel-head">
       <div>
         <h2>Rundown <span class="mono-tag">BACKLOG</span></h2>
-        <p class="panel-sub">Peso restante por etapa — o inverso da Curva de Avanço ( Peso / % )</p>
       </div>
     </div>
     <div class="chart-wrap">
@@ -676,7 +674,7 @@ main{
     <div class="panel-head">
       <div>
         <h2>Marcos por STH <span class="mono-tag" id="marcosTag">—</span></h2>
-        <p class="panel-sub">Montagem concluída e teste hidrostático por STH — previsto (P6) × realizado. O teste só acontece depois da montagem do STH. Troque o SOP clicando na tabela acima.</p>
+        <p class="panel-sub">Montagem concluída e teste hidrostático por STH — previsto (P6) × realizado.</p>
       </div>
     </div>
     <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select><label for="marcosSel" style="margin-left:12px">Mostrar:</label>
@@ -2785,7 +2783,7 @@ function renderJuntasKPIs(){
   const novoEnd  = Math.max(0, k.lib_end  - (k.lib_base  ?? k.lib_end));
   const aReal = k.a_soldar ?? (k.total_juntas-k.soldadas);
   const cards = [
-    { label:'Juntas a realizar',  value: fmtInt(aReal), unit:'jts', accent:'var(--azul)', foot: 'Out/26 a Out/27 · de ' + fmtInt(k.total_juntas) + ' no escopo (sem 6100 e cancelados)' },
+    { label:'Juntas a realizar',  value: fmtInt(aReal), unit:'jts', accent:'var(--azul)', foot: 'Out/26 a Out/27 · de ' + fmtInt(k.total_juntas) + ' juntas' },
     { label:'Soldadas (Raiz)',    value: fmtPct(aReal? novoSold/aReal*100 : 0), unit:'', accent:STAGE_COLORS['Soldado'], foot: fmtInt(novoSold) + ' soldadas · ' + fmtInt(aReal-novoSold) + ' a soldar', footClass:'up' },
     { label:'Liberadas END',      value: fmtPct(aReal? novoEnd/aReal*100 : 0),  unit:'', accent:STAGE_COLORS['Liberado END'], foot: fmtInt(novoEnd) + ' liberadas · ' + fmtInt(aReal-novoEnd) + ' a liberar' },
     { label:'END — RX previstos', value: fmtInt(k.a_rx ?? 0), unit:'jts', accent:'var(--azul-escuro)', foot: '0 realizados (a realizar)' },
