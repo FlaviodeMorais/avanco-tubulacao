@@ -638,6 +638,7 @@ main{
         <h2>Rundown por SOP <span class="mono-tag" id="sopCurveTag">BACKLOG</span></h2>
         <p class="panel-sub">Peso restante (a fabricar) por mês, por pacote — clique numa linha da tabela abaixo para trocar o pacote SOP</p>
       </div>
+      <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select></div>
     </div>
     <div class="chart-wrap-sm"><canvas id="sopCurveChart"></canvas></div>
   </section>
@@ -648,7 +649,6 @@ main{
         <h2>Avanço por SOP <span class="mono-tag">POR PESO</span></h2>
         <p class="panel-sub">Pacotes SOP — linhas, spools, peso de projeto e peso fabricado</p>
       </div>
-      <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select></div>
     </div>
     <div class="detail-scroll" style="max-height:420px">
       <table class="detail-table">
@@ -1844,6 +1844,27 @@ function renderKPIsExtra(){
   `).join('');
 }
 
+// O primeiro ponto do eixo (Out/15, último avanço do escopo antigo) fica isolado: só um marcador.
+// As séries do novo escopo (realizado e Book B) começam na coluna de Out/26.
+function separarBase(datasets){
+  const bases = [];
+  datasets.forEach(ds=>{
+    if(!ds.data.length || ds.data[0] === null || ds.data[0] === undefined) return;
+    const cor = ds.borderColor;
+    bases.push({ label: ds.label + ' · Base ' + PROJETO.mesBase, _base:true, data: ds.data.map((v,i)=> i===0 ? v : null),
+      showLine:false, borderColor:cor, backgroundColor:cor, pointBackgroundColor:cor, pointBorderColor:'#fff', pointBorderWidth:1.5,
+      pointRadius:5, pointHoverRadius:7, fill:false });
+    ds.data = ds.data.map((v,i)=> i===0 ? null : v);
+  });
+  // ponto sem vizinhos (ex.: realizado só em Out/26) não forma linha nem área: mostra um marcador
+  datasets.forEach(ds=>{
+    const r0 = ds.pointRadius || 0, d = ds.data;
+    ds.pointRadius = d.map((v,i)=> v!==null && v!==undefined && (i===0 || d[i-1]===null || d[i-1]===undefined) && (i===d.length-1 || d[i+1]===null || d[i+1]===undefined) ? Math.max(r0,4) : r0);
+  });
+  return datasets.concat(bases);
+}
+const legendaSemBase = { filter: (item, data) => !(data.datasets[item.datasetIndex] && data.datasets[item.datasetIndex]._base) };
+
 // ---------- Chart ----------
 function buildDatasets(){
   const curve = getCurve();
@@ -1866,7 +1887,7 @@ function buildDatasets(){
       tension: 0.25,
     };
   }).reverse();
-  return real.concat(buildPlanDatasets(view, false));
+  return separarBase(real.concat(buildPlanDatasets(view, false)));
 }
 
 // Linhas tracejadas da meta (P6), uma por etapa mapeada
@@ -1920,7 +1941,7 @@ function renderChart(){
         legend:{
           position:'bottom',
           labels:{
-            color:'#1A1A1A', font:{family:'Trebuchet MS', size:11}, usePointStyle:true, pointStyle:'rectRounded',
+            color:'#1A1A1A', font:{family:'Trebuchet MS', size:11}, usePointStyle:true, pointStyle:'rectRounded', ...legendaSemBase,
             padding:14, boxWidth:10, boxHeight:10,
           }
         },
@@ -1954,7 +1975,7 @@ function buildRundownDatasets(){
   const curve = getCurve();
   const view = getProjetoView(true);
   const stages = etapasVisiveis();
-  return stages.map(stage=>{
+  return separarBase(stages.map(stage=>{
     const raw = view.series[stage];
     let data;
     if(currentMode==='pct'){
@@ -1974,7 +1995,7 @@ function buildRundownDatasets(){
       fill: false,
       tension: 0.25,
     };
-  }).concat(buildPlanDatasets(view, true));
+  }).concat(buildPlanDatasets(view, true)));
 }
 
 let chartRundown = null;
@@ -2011,7 +2032,7 @@ function renderRundownChart(){
         legend:{
           position:'bottom',
           labels:{
-            color:'#1A1A1A', font:{family:'Trebuchet MS', size:11}, usePointStyle:true, pointStyle:'rectRounded',
+            color:'#1A1A1A', font:{family:'Trebuchet MS', size:11}, usePointStyle:true, pointStyle:'rectRounded', ...legendaSemBase,
             padding:14, boxWidth:10, boxHeight:10,
           }
         },
@@ -2371,7 +2392,7 @@ function renderSopCurve(sopCode){
   if(chartSopCurve) chartSopCurve.destroy();
   chartSopCurve = new Chart(canvas.getContext('2d'), {
     type:'line',
-    data:{ labels, datasets },
+    data:{ labels, datasets: separarBase(datasets) },
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
@@ -2381,7 +2402,7 @@ function renderSopCurve(sopCode){
             title:{display:true,text:'Peso restante (ton)',color:'#675C53',font:{family:'Trebuchet MS',size:10}}, beginAtZero:true }
       },
       plugins:{
-        legend:{ position:'bottom', labels:{color:'#1A1A1A',font:{family:'Trebuchet MS',size:11},usePointStyle:true,pointStyle:'rectRounded',padding:12} },
+        legend:{ position:'bottom', labels:{color:'#1A1A1A',font:{family:'Trebuchet MS',size:11},usePointStyle:true,pointStyle:'rectRounded', ...legendaSemBase,padding:12} },
         tooltip:{
           backgroundColor:'#fff', borderColor:'#008542', borderWidth:1,
           titleColor:'#1A1A1A', bodyColor:'#1A1A1A',
