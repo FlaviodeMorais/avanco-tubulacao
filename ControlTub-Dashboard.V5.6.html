@@ -294,8 +294,11 @@ main{
 .marcos-resumo .barra i{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; }
 .marcos-resumo .barra u{ position:absolute; top:-3px; bottom:-3px; width:2px; background:#1A1A1A; }
 .marcos-resumo small{ color:var(--text-muted); font-size:11px; }
-.marcos-linha{ position:relative; font-size:11px; }
-.mrow{ display:grid; grid-template-columns:200px 1fr; align-items:center; border-top:1px solid var(--hairline); min-height:26px; }
+.marcos-linha{ position:relative; font-size:11px; max-height:560px; overflow-y:auto; }
+.marcos-linha .mrow.eixo{ position:sticky; top:0; background:var(--bg-panel); z-index:2; border-top:0; }
+.marcos-filtro{ display:flex; align-items:center; gap:8px; margin:0 0 8px; font-size:12px; }
+.marcos-filtro select{ font:inherit; padding:5px 8px; border:1px solid var(--hairline); background:#fff; max-width:340px; }
+.mrow{ display:grid; grid-template-columns:270px 1fr; align-items:center; border-top:1px solid var(--hairline); min-height:26px; }
 .mrow .lbl{ padding:2px 8px 2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; }
 .mrow .lbl small{ font-weight:400; color:var(--text-muted); }
 .mrow .trk{ position:relative; height:26px; }
@@ -647,6 +650,8 @@ main{
         <p class="panel-sub">Montagem concluída e teste hidrostático por STH — previsto (P6) × realizado. O teste só acontece depois da montagem do STH. Troque o SOP clicando na tabela acima.</p>
       </div>
     </div>
+    <div class="marcos-filtro"><label for="marcosSel">Mostrar:</label>
+      <select id="marcosSel"><option value="__ALL__">Todos os SOP (por GP)</option></select></div>
     <div id="marcosResumo" class="marcos-resumo"></div>
     <div id="marcosLinha" class="marcos-linha"></div>
     <div class="marcos-legenda">
@@ -2122,16 +2127,28 @@ let chartSopCurve = null;
 function renderSopMarcos(sopCode){
   const box = document.getElementById('marcosLinha'), resumo = document.getElementById('marcosResumo');
   if(!box) return;
-  const tag = document.getElementById('marcosTag'); if(tag) tag.textContent = sopCode + (GP_SOP[sopCode] ? ' · ' + GP_SOP[sopCode] : '');
+  const todos = sopCode === '__ALL__';
   const real = DATA.sth_marcos || {};
+  const gpN = sop => { const g = GP_SOP[sop]; return g ? parseInt(g.slice(2),10) : 9999; };
+  const sel = document.getElementById('marcosSel');
+  if(sel){
+    if(sel.options.length <= 1){   // monta a lista de SOP uma vez, na ordem de GP
+      const sops = [...new Set(Object.values(real).map(r=>r.sop).filter(Boolean))].sort((a,b)=>gpN(a)-gpN(b) || a.localeCompare(b));
+      sops.forEach(sp=>{ const o = document.createElement('option'); o.value = sp; o.textContent = (GP_SOP[sp] ? GP_SOP[sp] + ' · ' : '') + sp; sel.appendChild(o); });
+      sel.addEventListener('change', ()=>renderSopMarcos(sel.value));
+    }
+    sel.value = sopCode;
+  }
+  const tag = document.getElementById('marcosTag');
+  if(tag) tag.textContent = todos ? 'TODOS OS SOP' : sopCode + (GP_SOP[sopCode] ? ' · ' + GP_SOP[sopCode] : '');
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const d0 = new Date(2026,9,1), d1 = new Date(2027,10,1), span = d1 - d0;
   const pos = d => Math.max(0, Math.min(100, (d - d0) / span * 100));
   const dt = s => s ? new Date(s + 'T00:00:00') : null;
-  const itens = Object.keys(real).filter(k => real[k].sop === sopCode).map(k => {
+  const itens = Object.keys(real).filter(k => todos || real[k].sop === sopCode).map(k => {
     const r = real[k], p = MARCOS_P6[k] || {};
-    return { sth:k, n:r.n, ton:r.ton, mp:dt(p.mont && p.mont[1]), tp:dt(p.th && p.th[1]), mr:dt(r.mont), tr:dt(r.th) };
-  }).sort((a,b)=> (a.tp||new Date(9999,0,1)) - (b.tp||new Date(9999,0,1)));
+    return { sth:k, sop:r.sop, n:r.n, ton:r.ton, mp:dt(p.mont && p.mont[1]), tp:dt(p.th && p.th[1]), mr:dt(r.mont), tr:dt(r.th) };
+  }).sort((a,b)=> (todos ? gpN(a.sop)-gpN(b.sop) || a.sop.localeCompare(b.sop) : 0) || (a.tp||new Date(9999,0,1)) - (b.tp||new Date(9999,0,1)));
   if(!itens.length){ resumo.innerHTML = ''; box.innerHTML = '<p class="panel-sub">Sem STH para este SOP.</p>'; return; }
   const totTon = itens.reduce((a,i)=>a+i.ton,0) || 1;
   const pct = (fn) => itens.filter(fn).reduce((a,i)=>a+i.ton,0) / totTon * 100;
@@ -2142,7 +2159,7 @@ function renderSopMarcos(sopCode){
   const f1 = v => v.toFixed(1).replace('.',',') + '%';
   resumo.innerHTML = cards.map(([t,c,r,p])=>`<div class="mr"><b>${t}</b>
     <div class="barra"><i style="width:${Math.min(r,100)}%;background:${c}"></i><u style="left:${Math.min(p,100)}%"></u></div>
-    <small>Realizado ${f1(r)} · Previsto até hoje ${f1(p)} (por peso, ${itens.length} STH)</small></div>`).join('');
+    <small>Realizado ${f1(r)} · Previsto até hoje ${f1(p)} (por peso, ${itens.length} STH${todos ? ' · ' + new Set(itens.map(i=>i.sop)).size + ' SOP' : ''})</small></div>`).join('');
   const meses = []; for(let d=new Date(d0); d<d1; d.setMonth(d.getMonth()+1)) meses.push(new Date(d));
   const grade = meses.map(m=>`<div class="gr" style="left:${pos(m)}%"></div>`).join('');
   const hj = (hoje>=d0 && hoje<d1) ? `<div class="hj" style="left:${pos(hoje)}%" title="Hoje"></div>` : '';
@@ -2159,7 +2176,7 @@ function renderSopMarcos(sopCode){
     const foraSeq = !!(i.tr && (!i.mr || i.tr < i.mr));
     const a = i.mp || i.mr, b = i.tp || i.tr;
     const lig = (a && b) ? `<div class="lig" style="left:${pos(a)}%;width:${Math.max(0,pos(b)-pos(a))}%"></div>` : '';
-    return `<div class="mrow"><div class="lbl" title="${escapeHtml(i.sth)}">${escapeHtml(i.sth)} <small>${fmtTonCima(i.ton)} t · ${i.n} sp</small></div>
+    return `<div class="mrow"><div class="lbl" title="${escapeHtml(i.sth)} · ${escapeHtml(i.sop||'')}">${escapeHtml(i.sth)} <small>${todos ? escapeHtml((GP_SOP[i.sop]||'') + ' ' + (i.sop||'').replace('SOP-','')) : fmtTonCima(i.ton) + ' t · ' + i.n + ' sp'}</small></div>
       <div class="trk">${grade}${hj}${lig}${marco('mont', i.mp, i.mr, false)}${marco('th', i.tp, i.tr, foraSeq)}</div></div>`;
   }).join('');
   box.innerHTML = eixo + linhas;
