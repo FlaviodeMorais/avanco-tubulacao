@@ -2425,7 +2425,7 @@ function renderSopCurve(sopCode){
   const real = hist.concat(projReal);
   const restante = real.map(v => v===null ? null : +(curve.total - v).toFixed(3));
   const datasets = [
-    { label:'Fabricado (restante)', data: restante, backgroundColor: STAGE_COLORS['Fabricado'],
+    { label:'Fabricado Remanescente', data: restante, backgroundColor: STAGE_COLORS['Fabricado'],
       borderColor: STAGE_COLORS['Fabricado'], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
       pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 },
   ];
@@ -2443,7 +2443,7 @@ function renderSopCurve(sopCode){
       const j = i < n ? -1 : CRONO.months.indexOf(m);
       return j < 0 ? null : +restPrev(j).toFixed(3);
     });
-    datasets.push({ label:'Book B · Fabricado (restante)', data: meta, borderColor: STAGE_COLORS['Fabricado'],
+    datasets.push({ label:'Book B Fabricação', data: meta, borderColor: STAGE_COLORS['Fabricado'],
       backgroundColor:'transparent', borderDash:[6,4], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
       pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 });
   }
