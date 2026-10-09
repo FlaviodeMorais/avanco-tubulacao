@@ -276,6 +276,15 @@ main{
 .mt .cx.ok{ background:#E3F3E9; }
 .mt .cx.sel{ box-shadow:0 0 0 3px #FDC82F; z-index:3; }
 .mt .cx:hover{ z-index:4; box-shadow:0 0 0 2px #00854255; }
+.gp-ficha{ border:1px solid var(--verde); border-radius:4px; background:#fff; margin:6px 0 14px; }
+.gp-ficha .gf-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 22px; padding:10px 14px; background:#E3F3E9; border-bottom:1px solid var(--verde); }
+.gp-ficha .gf-head h3{ margin:0; font-size:15px; color:var(--verde); }
+.gp-ficha .gf-kpi{ font-size:12px; color:var(--text-muted); } .gp-ficha .gf-kpi b{ color:var(--text-primary); font-size:14px; }
+.gp-ficha .gf-bar{ flex:1; min-width:140px; height:10px; background:#E4E2DD; border-radius:3px; align-self:center; } .gp-ficha .gf-bar i{ display:block; height:100%; border-radius:3px; background:var(--verde); }
+.gp-ficha table{ width:100%; border-collapse:collapse; font-size:12px; }
+.gp-ficha th{ text-align:left; padding:6px 12px; color:var(--text-muted); font-weight:700; border-bottom:1px solid var(--hairline); }
+.gp-ficha td{ padding:5px 12px; border-bottom:1px solid var(--hairline); } .gp-ficha tr:last-child td{ border-bottom:0; }
+.gp-ficha .num{ text-align:right; }
 .marcos-filtro{ display:flex; align-items:center; gap:8px; margin:0 0 8px; font-size:12px; }
 .marcos-filtro select{ font:inherit; padding:5px 8px; border:1px solid var(--hairline); background:#fff; max-width:340px; }
 .mrow{ display:grid; grid-template-columns:270px 1fr; align-items:center; border-top:1px solid var(--hairline); min-height:26px; }
@@ -590,8 +599,10 @@ main{
         <h2>Rundown por SOP <span class="mono-tag" id="sopCurveTag">BACKLOG</span></h2>
         <p class="panel-sub">Peso restante (a fabricar) por mês, por pacote — clique numa linha da tabela abaixo para trocar o pacote SOP</p>
       </div>
-      <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select></div>
+      <div class="marcos-filtro"><label for="gpSel">Grupo (GP):</label><select id="gpSel" aria-label="Selecionar grupo de SOP"><option value="">SOP individual</option></select>
+        <label style="margin-left:12px">Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select></div>
     </div>
+    <div id="gpFicha" class="gp-ficha" hidden></div>
     <div class="chart-wrap-sm"><canvas id="sopCurveChart"></canvas></div>
   </section>
 
@@ -833,6 +844,7 @@ const ETAPAS_OCULTAS = ['Programado', 'Visual de Ajuste', 'Liberado END'];
 const etapasVisiveis = () => DATA.stages.filter(st => !ETAPAS_OCULTAS.includes(st));
 let DEPARA_SPOOL = {}; // de_para_spool.json — SOP/SUBSOP/STH novos por spool (CONTROLE GERAL DE STH-HC²), chave iso|spool
 let _sopAtual = null;
+let GP_SEL = ''; // grupo (GP) selecionado no Rundown por SOP; '' = SOP individual
 let MT_ZOOM = 1, MT_AUTO = true, _mtSop = '__ALL__'; const MT_ZOOMS = [0.3,0.5,0.75,1,1.5,2,3,4];
 let FILTRO_UNID = ''; // '' = todas | '4710' | '4730' — filtro de Avanço por SOP e Marcos por STH (unidade pelo código do SOP: SOP-U-4710-…)
 const sopNaUnidade = sop => !FILTRO_UNID || String(sop||'').includes('-' + FILTRO_UNID + '-');
@@ -2090,14 +2102,21 @@ function renderSopAvanco(){
   }).join('');
   // seleciona o primeiro pacote (maior peso) por padrão, pra o painel de cima
   // nunca ficar vazio nem depender de o usuário descobrir que a linha é clicável
+  montarSeletorGp();
   renderSopCurve((rows.find(r=>r.sop===_sopAtual) || rows[0]).sop);
 }
+
+document.getElementById('gpSel').addEventListener('change', e=>{
+  GP_SEL = e.target.value;
+  renderSopCurve(_sopAtual || ((DATA.sop_ranking||[])[0]||{}).sop);
+});
 
 document.querySelectorAll('.filtro-unid').forEach(sel=>sel.addEventListener('change', ()=>{
   FILTRO_UNID = sel.value;
   document.querySelectorAll('.filtro-unid').forEach(o=>{ o.value = FILTRO_UNID; });
   const msel = document.getElementById('marcosSel');
   const eraTodos = !msel || msel.value === '__ALL__';
+  montarSeletorGp();
   renderSopAvanco();   // refaz a tabela e, pelo SOP selecionado, o Rundown por SOP e os marcos
   if(eraTodos) renderSopMarcos('__ALL__');   // quem estava vendo "Todos" continua vendo todos, só da unidade
 }));
@@ -2105,6 +2124,7 @@ document.querySelectorAll('.filtro-unid').forEach(sel=>sel.addEventListener('cha
 document.getElementById('sopAvancoBody').addEventListener('click', e=>{
   const tr = e.target.closest('tr[data-sop]');
   if(!tr) return;
+  if(GP_SEL){ GP_SEL = ''; const g = document.getElementById('gpSel'); if(g) g.value = ''; }
   renderSopCurve(tr.dataset.sop);
 });
 
@@ -2284,19 +2304,62 @@ function renderSopMarcos(sopCode){
   box.innerHTML = eixo + linhas;
 }
 
+// SOPs do grupo selecionado (respeita o filtro de unidade), na ordem do Avanço por SOP
+function sopsDoGrupo(){
+  if(!GP_SEL) return [];
+  return (DATA.sop_ranking || []).filter(r => GP_SOP[r.sop] === GP_SEL && sopNaUnidade(r.sop)).sort((a,b)=>b.peso_total-a.peso_total);
+}
+
+// Atualiza as opções do seletor de GP (só os GP que têm SOP na unidade filtrada)
+function montarSeletorGp(){
+  const sel = document.getElementById('gpSel'); if(!sel) return;
+  const gps = [...new Set((DATA.sop_ranking||[]).filter(r=>sopNaUnidade(r.sop) && GP_SOP[r.sop]).map(r=>GP_SOP[r.sop]))].sort((a,b)=>parseInt(a.slice(2))-parseInt(b.slice(2)));
+  sel.innerHTML = '<option value="">SOP individual</option>' + gps.map(g=>`<option value="${g}">${g}</option>`).join('');
+  if(!gps.includes(GP_SEL)) GP_SEL = '';
+  sel.value = GP_SEL;
+}
+
+function renderFichaGrupo(rows){
+  const box = document.getElementById('gpFicha'); if(!box) return;
+  if(!rows){ box.hidden = true; box.innerHTML = ''; return; }
+  const soma = k => rows.reduce((a,r)=>a+(r[k]||0),0);
+  const tot = soma('peso_total'), fab = soma('peso_fabricado'), p = tot ? fab/tot*100 : 0;
+  const f1 = v => v.toFixed(1).replace('.',',') + '%';
+  box.hidden = false;
+  box.innerHTML = `<div class="gf-head"><h3>Ficha do Grupo ${escapeHtml(GP_SEL)}${FILTRO_UNID ? ' · U-' + FILTRO_UNID : ''}</h3>
+      <span class="gf-kpi"><b>${fmtInt(rows.length)}</b> SOP</span>
+      <span class="gf-kpi"><b>${fmtInt(soma('sths'))}</b> STH</span>
+      <span class="gf-kpi"><b>${fmtInt(soma('linhas'))}</b> linhas</span>
+      <span class="gf-kpi"><b>${fmtInt(soma('spools'))}</b> spools</span>
+      <span class="gf-kpi"><b>${fmtTonCima(tot)}</b> ton</span>
+      <span class="gf-kpi"><b>${fmtTonCima(fab)}</b> ton fabricado · <b>${f1(p)}</b></span>
+      <div class="gf-bar"><i style="width:${Math.min(p,100)}%"></i></div></div>
+    <table><thead><tr><th>SOP</th><th class="num">STH</th><th class="num">Linhas</th><th class="num">Spools</th><th class="num">Peso (ton)</th><th class="num">Fabricado (ton)</th><th class="num">% Fabricado</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td style="font-weight:700">${escapeHtml(r.sop)}</td><td class="num">${fmtInt(r.sths)}</td><td class="num">${fmtInt(r.linhas)}</td><td class="num">${fmtInt(r.spools)}</td><td class="num">${fmtTonCima(r.peso_total)}</td><td class="num">${fmtTonCima(r.peso_fabricado)}</td><td class="num">${String(r.pct_fabricado).replace('.',',')}%</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
 function renderSopCurve(sopCode){
   _sopAtual = sopCode;
-  try{ renderSopMarcos(sopCode); }catch(e){ console.error('Marcos por STH:', e); }
   const bySop = DATA.by_sop || {};
-  const curve = bySop[sopCode];
+  const grupo = sopsDoGrupo();
+  const modoGp = grupo.length > 0;
+  renderFichaGrupo(modoGp ? grupo : null);
+  try{ renderSopMarcos(sopCode); }catch(e){ console.error('Marcos por STH:', e); }
+  let curve = bySop[sopCode];
+  if(modoGp){   // curva do grupo = soma das curvas de fabricação dos SOP
+    const sops = grupo.map(r=>r.sop).filter(sp=>bySop[sp]);
+    const nm = (bySop[sops[0]].series['Fabricado']||[]).length;
+    curve = { total: sops.reduce((a,sp)=>a+bySop[sp].total,0), series:{ Fabricado: Array.from({length:nm}, (_,i)=> sops.reduce((a,sp)=>a+bySop[sp].series['Fabricado'][i],0)) } };
+  }
   const tagEl = document.getElementById('sopCurveTag');
   const canvas = document.getElementById('sopCurveChart');
   if(!curve || !canvas) return;
 
   document.querySelectorAll('#sopAvancoBody tr.selected').forEach(tr=>tr.classList.remove('selected'));
   const selectedTr = document.querySelector(`#sopAvancoBody tr[data-sop="${CSS.escape(sopCode)}"]`);
-  if(selectedTr) selectedTr.classList.add('selected');
-  if(tagEl) tagEl.textContent = sopCode;
+  if(selectedTr && !modoGp) selectedTr.classList.add('selected');
+  if(tagEl) tagEl.textContent = modoGp ? GP_SEL + ' · ' + grupo.length + ' SOP' : sopCode;
 
   // Último mês do avanço anterior (PROJETO.mesBase) + meses do novo cronograma
   const pv = getProjetoView(false);
@@ -2317,12 +2380,19 @@ function renderSopCurve(sopCode){
       borderColor: STAGE_COLORS['Fabricado'], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
       pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 },
   ];
-  const pct = CRONO && CRONO.plano_sop && CRONO.plano_sop[sopCode] && CRONO.plano_sop[sopCode]['Fabricado'];
+  const pctDe = sp => CRONO && CRONO.plano_sop && CRONO.plano_sop[sp] && CRONO.plano_sop[sp]['Fabricado'];
+  const alvos = modoGp ? grupo.map(r=>r.sop).filter(sp=>bySop[sp]) : [sopCode];
+  const pct = alvos.some(pctDe);
   if(pct){
+    // restante previsto = soma, por SOP, de total − (base + (total − base) × % planejado); SOP sem plano fica parado na base
+    const restPrev = j => alvos.reduce((a,sp)=>{
+      const c = bySop[sp], b = c.series['Fabricado'][idxBase], p = pctDe(sp);
+      return a + (c.total - (b + (c.total - b) * (p && j>=0 ? p[j] : 0)));
+    }, 0);
     const meta = labels.map((m,i) => {
-      if(i === n-1) return +(curve.total - baseSop).toFixed(3);          // parte do último ponto do histórico
+      if(i === n-1) return +restPrev(-1).toFixed(3);          // parte do último ponto do histórico
       const j = i < n ? -1 : CRONO.months.indexOf(m);
-      return j < 0 ? null : +(curve.total - (baseSop + (curve.total - baseSop) * pct[j])).toFixed(3);
+      return j < 0 ? null : +restPrev(j).toFixed(3);
     });
     datasets.push({ label:'Book B · Fabricado (restante)', data: meta, borderColor: STAGE_COLORS['Fabricado'],
       backgroundColor:'transparent', borderDash:[6,4], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
