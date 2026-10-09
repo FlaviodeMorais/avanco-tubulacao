@@ -115,6 +115,7 @@ main{
 .select-industrial:focus, .search-input:focus{ outline:2px solid var(--azul); outline-offset:1px; }
 
 .topbar-right{ display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap; }
+@media(min-width:900px){ .topbar-right{ flex-wrap:nowrap; } .topbar-right .upload-btn{ white-space:nowrap; } }
 .topbar-field{ display:flex; flex-direction:column; }
 .upload-btn{
   display:flex; align-items:center; gap:8px;
@@ -472,21 +473,21 @@ main{
       <label class="field-label">Atualizar dados</label>
       <button id="uploadBtn" class="upload-btn" type="button">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Mapa de Spools ou Juntas (.xlsx)
+        Atualizar
       </button>
       <input type="file" id="fileInput" accept=".xlsx" hidden>
     </div>
     <div class="topbar-field">
-      <label class="field-label">Baixar Dados</label>
+      <label class="field-label">Dados</label>
       <button id="downloadZipBtn" class="upload-btn publish-btn" type="button" title="Baixa data.json e juntas.json compactados em .zip — útil para uma futura migração dos dados para BI">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Baixar Dados (.zip)
+        Baixar
       </button>
     </div>
     <div class="topbar-field" id="salvarPainelCampo" hidden>
       <label class="field-label">Compartilhar</label>
       <button id="salvarPainelBtn" class="upload-btn publish-btn" type="button" title="Gera um novo arquivo .html já com as planilhas carregadas — é só substituir o arquivo na pasta compartilhada">
-        Salvar painel atualizado (.html)
+        Enviar
       </button>
     </div>
   </div>
