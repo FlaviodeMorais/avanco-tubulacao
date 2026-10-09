@@ -666,7 +666,7 @@ main{
         <p class="panel-sub">Montagem concluída e teste hidrostático por STH — previsto (P6) × realizado.</p>
       </div>
     </div>
-    <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select><label for="marcosSel" style="margin-left:12px">Mostrar:</label>
+    <div class="marcos-filtro"><label>Unidade:</label><select class="filtro-unid-m" aria-label="Filtrar por unidade"><option value="">Todas as unidades</option><option value="4710">U-4710</option><option value="4730">U-4730</option></select><label for="marcosSel" style="margin-left:12px">Mostrar:</label>
       <select id="marcosSel"><option value="__ALL__">Todos os SOP (por GP)</option></select></div>
     <div class="mt-zoom" role="group" aria-label="Zoom da linha do tempo">
       <span>Zoom:</span>
@@ -875,7 +875,8 @@ let GP_SEL = ''; // grupo (GP) selecionado no Rundown por SOP; '' = todos os gru
 let MT_ZOOM = 1, MT_AUTO = true, _mtSop = '__ALL__'; const MT_ZOOMS = [0.3,0.5,0.75,1,1.5,2,3,4];
 let FILTRO_UNID = ''; // '' = todas | '4710' | '4730' — filtro de Avanço por SOP e Marcos por STH (unidade pelo código do SOP: SOP-U-4710-…)
 const sopNaUnidade = sop => !FILTRO_UNID || String(sop||'').includes('-' + FILTRO_UNID + '-');
-const sopNoEscopo = sop => sopNaUnidade(sop) && (!GP_SEL || GP_SOP[sop] === GP_SEL);   // unidade + grupo escolhidos
+let FILTRO_UNID_M = ''; // filtro de unidade do Marcos por STH (independente do Rundown por SOP)
+const sopNoEscopo = sop => !FILTRO_UNID_M || String(sop||'').includes('-' + FILTRO_UNID_M + '-');   // Marcos por STH: só a unidade escolhida nele
 let GP_SOP = {}; // gp_sop.json — grupo de prioridade (GP) de cada SOP, da rede de precedência (CCM das malhas)
 let MARCOS_P6 = {}; // marcos_sth.json — montagem e teste hidrostático previstos por STH (P6)
 let EXCLUIR_SPOOLS = new Set(); // excluidos.json — spools cancelados (iso|spool) (gerado por scripts/gerar_cronograma.py)
@@ -2092,7 +2093,12 @@ function renderSummaryPxR(view, months, curIdx, cell){
 
 // ---------- Avanço por SOP: agora dentro da Ficha do Rundown por SOP ----------
 // Seleção: GP_SEL ('' = todos os grupos) e _sopAtual ('' = o conjunto de SOP exibido, somado)
-function renderSopAvanco(){ montarSeletorGp(); renderSopCurve(); }
+function renderSopAvanco(){ montarSeletorGp(); renderSopCurve(); try{ renderSopMarcos(_mtSop || '__ALL__'); }catch(e){ console.error('Marcos por STH:', e); } }
+
+document.querySelector('.filtro-unid-m').addEventListener('change', e=>{
+  FILTRO_UNID_M = e.target.value;
+  renderSopMarcos('__ALL__');
+});
 
 document.getElementById('gpSel').addEventListener('change', e=>{
   GP_SEL = e.target.value; _sopAtual = '';
@@ -2159,7 +2165,7 @@ function renderMarcosTimeline(sopSel){
   const lista = Object.values(por).filter(o=>o.fim).sort((a,b)=>a.fim-b.fim);
   const semData = Object.values(por).length - lista.length;
   if(!lista.length){ wrap.innerHTML = '<p class="panel-sub" style="padding:14px">Sem SOP com teste previsto no P6.</p>'; return; }
-  const W = MT_AUTO ? Math.max(700, (wrap.clientWidth || 1500) - 2) : Math.max(wrap.clientWidth || 1500, Math.round((FILTRO_UNID ? 3000 : 4400) * MT_ZOOM)), PAD = 60, usable = W - 2*PAD;  // eixo largo, com rolagem horizontal, para as caixas não se empilharem
+  const W = MT_AUTO ? Math.max(700, (wrap.clientWidth || 1500) - 2) : Math.max(wrap.clientWidth || 1500, Math.round((FILTRO_UNID_M ? 3000 : 4400) * MT_ZOOM)), PAD = 60, usable = W - 2*PAD;  // eixo largo, com rolagem horizontal, para as caixas não se empilharem
   const d0 = new Date(2026,9,1), d1 = new Date(2027,10,1), span = d1 - d0;
   const x = d => PAD + Math.max(0, Math.min(1, (d - d0) / span)) * usable;
   const compacto = MT_AUTO || MT_ZOOM < 0.6;   // período inteiro na tela: caixas menores (só SOP e data)
@@ -2239,8 +2245,8 @@ function renderSopMarcos(sopCode){
   const sel = document.getElementById('marcosSel');
   if(sel){
     if(!sel.dataset.pronto){ sel.dataset.pronto = '1'; sel.addEventListener('change', ()=>renderSopMarcos(sel.value)); }
-    if(sel.dataset.unid !== (FILTRO_UNID + '|' + GP_SEL) || sel.options.length <= 1){   // lista de SOP da unidade, na ordem de GP
-      sel.dataset.unid = FILTRO_UNID + '|' + GP_SEL;
+    if(sel.dataset.unid !== (FILTRO_UNID_M) || sel.options.length <= 1){   // lista de SOP da unidade, na ordem de GP
+      sel.dataset.unid = FILTRO_UNID_M;
       const sops = [...new Set(Object.values(real).map(r=>r.sop).filter(sopNoEscopo))].sort((a,b)=>gpN(a)-gpN(b) || a.localeCompare(b));
       sel.innerHTML = '<option value="__ALL__">Todos os SOP (por GP)</option>';
       sops.forEach(sp=>{ const o = document.createElement('option'); o.value = sp; o.textContent = (GP_SOP[sp] ? GP_SOP[sp] + ' · ' : '') + sp; sel.appendChild(o); });
@@ -2248,7 +2254,7 @@ function renderSopMarcos(sopCode){
     sel.value = [...sel.options].some(o=>o.value===sopCode) ? sopCode : '__ALL__';
   }
   const tag = document.getElementById('marcosTag');
-  if(tag) tag.textContent = todos ? 'TODOS OS SOP' + (FILTRO_UNID ? ' · U-' + FILTRO_UNID : '') : sopCode + (GP_SOP[sopCode] ? ' · ' + GP_SOP[sopCode] : '');
+  if(tag) tag.textContent = todos ? 'TODOS OS SOP' + (FILTRO_UNID_M ? ' · U-' + FILTRO_UNID_M : '') : sopCode + (GP_SOP[sopCode] ? ' · ' + GP_SOP[sopCode] : '');
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const d0 = new Date(2026,9,1), d1 = new Date(2027,10,1), span = d1 - d0;
   const pos = d => Math.max(0, Math.min(100, (d - d0) / span * 100));
@@ -2342,7 +2348,6 @@ function renderSopCurve(){
   const lista = sopsDaFicha();
   if(_sopAtual && !lista.some(r=>r.sop === _sopAtual)) _sopAtual = '';
   renderFichaGrupo(lista);
-  try{ renderSopMarcos(_sopAtual || '__ALL__'); }catch(e){ console.error('Marcos por STH:', e); }
   const alvos = (_sopAtual ? [_sopAtual] : lista.map(r=>r.sop)).filter(sp=>bySop[sp]);
   const modoGp = !_sopAtual;
   if(!alvos.length) return;
