@@ -1826,7 +1826,7 @@ function buildDatasets(){
 function buildPlanDatasets(view, restante){
   const ordem = etapasVisiveis().filter(st=>view.plan[st]).reverse(); // do menor (Teste) ao maior (Fabricado)
   return ordem.map((stage, k)=>({
-    label: 'Meta P6 · ' + stage,
+    label: 'Book B · ' + stage,
     data: view.plan[stage].map(v=>{
       if(v===null) return null;
       const x = restante ? view.total - v : v;
@@ -1997,7 +1997,7 @@ function renderSummaryTable(){
     let tr = '<tr><td>'+dot+stage+'</td><td class="base-col">'+fmtTon(view.base[stage])+'</td>' +
       view.series[stage].map((v,i)=>cell(v,i)).join('') + '</tr>';
     if(view.plan[stage]){
-      tr += '<tr class="plan-row"><td>&nbsp;&nbsp;↳ Meta P6</td><td class="base-col"></td>' +
+      tr += '<tr class="plan-row"><td>&nbsp;&nbsp;↳ Book B</td><td class="base-col"></td>' +
         view.plan[stage].map((v,i)=>cell(v,i)).join('') + '</tr>';
     }
     return tr;
@@ -2314,7 +2314,7 @@ function renderSopCurve(sopCode){
       const j = i < n ? -1 : CRONO.months.indexOf(m);
       return j < 0 ? null : +(curve.total - (baseSop + (curve.total - baseSop) * pct[j])).toFixed(3);
     });
-    datasets.push({ label:'Meta P6 · Fabricado (restante)', data: meta, borderColor: STAGE_COLORS['Fabricado'],
+    datasets.push({ label:'Book B · Fabricado (restante)', data: meta, borderColor: STAGE_COLORS['Fabricado'],
       backgroundColor:'transparent', borderDash:[6,4], borderWidth:1.5, pointRadius:3, pointHoverRadius:5,
       pointBackgroundColor: STAGE_COLORS['Fabricado'], fill:false, tension:.25 });
   }
